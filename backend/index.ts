@@ -11,7 +11,7 @@ connectDatabse();
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:8080",
-  "https://quickmed-animeshog.vercel.app" // Add your Vercel domain
+  "https://quickmed-animeshog.vercel.app", // Add your Vercel domain
 ];
 
 app.use(
@@ -49,10 +49,10 @@ app.use("/api/gemini", GeminiRouter);
 
 // Add root route for Vercel
 app.get("/", (_req: Request, res: Response): void => {
-  res.status(200).json({ 
+  res.status(200).json({
     message: "QuickMed API is running",
     status: "healthy",
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -65,28 +65,19 @@ app.get("/health", (req: Request, res: Response) => {
   res.status(200).json({ status: "ok" });
 });
 
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction): void => {
-  console.error(err.stack);
-  res.status(500).json({
-    message: "An unexpected error occurred",
-    error: process.env.NODE_ENV === "development" ? err.message : undefined,
-  });
+app.use(
+  (err: Error, _req: Request, res: Response, _next: NextFunction): void => {
+    console.error(err.stack);
+    res.status(500).json({
+      message: "An unexpected error occurred",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
+  }
+);
+
+const server = app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
 
-const server = app
-  .listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  })
-  .on("error", (err: NodeJS.ErrnoException) => {
-    if (err.code === "EADDRINUSE") {
-      console.error(
-        `Port ${PORT} is already in use. Please try another port or close the application using this port.`
-      );
-      process.exit(1);
-    } else {
-      console.error("Server error:", err);
-      process.exit(1);
-    }
-  });
-
-export default server;
+// Change export to module.exports for Vercel
+module.exports = app;
