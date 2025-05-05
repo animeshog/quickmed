@@ -45,6 +45,15 @@ app.use((req, res, next) => {
 app.use("/api/auth", userRouter);
 app.use("/api/gemini", GeminiRouter);
 
+// Add root route for Vercel
+app.get("/", (req: Request, res: Response) => {
+  res.status(200).json({ 
+    message: "QuickMed API is running",
+    status: "healthy",
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Add catch-all route handler
 app.use("*", (req: Request, res: Response) => {
   res.status(404).json({ message: `Route ${req.baseUrl} not found` });
@@ -78,4 +87,4 @@ const server = app
     }
   });
 
-export default app;
+export default server;
