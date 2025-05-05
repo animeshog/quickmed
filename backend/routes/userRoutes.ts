@@ -4,6 +4,14 @@ import { isAuthanticatedUser } from "../middlewares";
 import History from "../models/historySchema";
 import User from "../models/userSchema";
 
+// Add custom interface for Request with user property
+interface AuthenticatedRequest extends Request {
+  user?: {
+    _id: string;
+    // Add other user properties if needed
+  };
+}
+
 const router = Router();
 
 router.post("/register", async (req: Request, res: Response): Promise<void> => {
@@ -25,9 +33,9 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
 router.get(
   "/info",
   isAuthanticatedUser,
-  async (req: Request, res: Response): Promise<void> => {
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const user = await User.findById(req.user._id).select(
+      const user = await User.findById(req.user?._id).select(
         "name email dob gender height weight bloodGroup createdAt"
       );
 
@@ -57,9 +65,9 @@ router.get(
 router.get(
   "/chat-history",
   isAuthanticatedUser,
-  async (req: Request, res: Response): Promise<void> => {
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const history = await History.find({ userId: req.user._id })
+      const history = await History.find({ userId: req.user?._id })
         .sort({ date: -1 })
         .limit(10);
 
