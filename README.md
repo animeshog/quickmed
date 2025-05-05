@@ -15,8 +15,8 @@
 
 1. Clone the repo:
     ```bash
-    git clone https://github.com/animeshog/project_quickmed.git
-    cd project_quickmed/backend
+    git clone https://github.com/animeshog/quickmed.git
+    cd backend
     ```
 
 2. Create a `.env` file inside the `backend/` directory:
