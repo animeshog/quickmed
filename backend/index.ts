@@ -8,14 +8,16 @@ import userRouter from "./routes/userRoutes";
 
 connectDatabse();
 
-const allowedOrigins = ["http://localhost:5173", "http://localhost:8080"];
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:8080",
+  "https://quickmed-animeshog.vercel.app" // Add your Vercel domain
+];
 
 app.use(
   cors({
-    origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) !== -1) {
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));
@@ -46,7 +48,7 @@ app.use("/api/auth", userRouter);
 app.use("/api/gemini", GeminiRouter);
 
 // Add root route for Vercel
-app.get("/", (req: Request, res: Response) => {
+app.get("/", (_req: Request, res: Response): void => {
   res.status(200).json({ 
     message: "QuickMed API is running",
     status: "healthy",
@@ -63,7 +65,7 @@ app.get("/health", (req: Request, res: Response) => {
   res.status(200).json({ status: "ok" });
 });
 
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction): void => {
   console.error(err.stack);
   res.status(500).json({
     message: "An unexpected error occurred",
