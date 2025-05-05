@@ -1,16 +1,16 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "main": "dist/index.js",
+  "main": "index.ts",
   "type": "commonjs",
   "engines": {
     "node": "18.x"
   },
   "scripts": {
-    "start": "node dist/index.js",
+    "start": "node index.js",
     "dev": "nodemon index.ts",
     "build": "tsc",
-    "vercel-build": "npm run build",
+    "vercel-build": "echo hello",
     "postinstall": "tsc"
   },
   "author": "",
