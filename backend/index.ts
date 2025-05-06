@@ -11,6 +11,8 @@ connectDatabse();
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:8080",
+
+/ Vercel not working /
   "https://quickmed-animeshog.vercel.app", // Add your Vercel domain
 ];
 
