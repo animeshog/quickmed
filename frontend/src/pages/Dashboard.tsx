@@ -18,13 +18,14 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import ReactMarkdown from "react-markdown";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CategorizedSymptoms from "@/components/CategorizedSymptoms";
 import Logo from "@/components/Logo";
 import AnimatedBackground from "@/components/AnimatedBackground";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -32,6 +33,72 @@ import {
 import html2pdf from "html2pdf.js";
 import { determineSpeciality, generatePractoURL } from "@/utils/doctorMapping";
 import SpeechInput from "@/components/SpeechInput";
+
+const followUpQuestionTemplates: { keywords: string[]; question: string }[] = [
+  {
+    keywords: ["fever", "chills", "sweats"],
+    question: "Do you have any fever or chills?",
+  },
+  {
+    keywords: ["cough", "breath", "wheezing", "chest", "tightness"],
+    question: "Do you have any breathing difficulties or chest discomfort?",
+  },
+  {
+    keywords: ["pain", "ache", "headache", "earache", "toothache", "stiff"],
+    question: "Are you experiencing any pain? If yes, where and how intense is it?",
+  },
+  {
+    keywords: ["nausea", "vomit", "diarrhea", "constipation", "abdominal", "heartburn", "indigestion", "appetite", "bloating"],
+    question: "Have you noticed any changes in appetite, digestion, or bowel habits?",
+  },
+  {
+    keywords: ["fatigue", "tired", "sleep", "insomnia", "dizziness", "lightheaded"],
+    question: "How are your energy, sleep, and mood?",
+  },
+  {
+    keywords: ["rash", "itch", "hives", "swelling", "redness", "dry skin"],
+    question: "Do you have any rash, itching, swelling, or skin changes?",
+  },
+  {
+    keywords: ["urination", "urinary", "painful", "blood in urine"],
+    question: "Are you experiencing any changes in urination?",
+  },
+  {
+    keywords: ["travel", "exposure", "contact", "sick"],
+    question: "Have you recently traveled or been exposed to someone who is sick?",
+  },
+  {
+    keywords: ["allergy", "asthma", "diabetes", "hypertension", "condition", "illness"],
+    question: "Do you have any known allergies or prior medical conditions?",
+  },
+];
+
+const getFollowUpQuestions = (symptoms: string[]) => {
+  const normalizedSymptoms = symptoms.map((symptom) =>
+    symptom.toLowerCase().trim()
+  );
+  const questions = new Set<string>();
+
+  followUpQuestionTemplates.forEach((template) => {
+    if (
+      template.keywords.some((keyword) =>
+        normalizedSymptoms.some((symptom) => symptom.includes(keyword))
+      )
+    ) {
+      questions.add(template.question);
+    }
+  });
+
+  if (questions.size === 0) {
+    questions.add("How long have you been experiencing these symptoms?");
+    questions.add("Are you currently taking any medications or supplements?");
+  }
+
+  questions.add("How long have you been experiencing these symptoms?");
+  questions.add("Are you currently taking any medications or supplements?");
+
+  return Array.from(questions).slice(0, 6);
+};
 
 const symptomCategories = {
   "General Symptoms": [
@@ -167,6 +234,22 @@ const symptomCategories = {
   ],
 };
 
+type ResultTabId =
+  | "cause"
+  | "treatment"
+  | "medication"
+  | "homeRemedies"
+  | "fileAnalysis";
+
+interface ResultTab {
+  id: ResultTabId;
+  title: string;
+  icon: string;
+  color: string;
+  bgColor: string;
+  content: string;
+}
+
 interface AnalysisResults {
   cause: string;
   treatment: string;
@@ -186,25 +269,23 @@ interface UserInfo {
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [symptoms, setSymptoms] = useState("");
-  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1);
-  const [analysisResults, setAnalysisResults] = useState({
-    cause: "",
-    treatment: "",
-    medication: "",
-    homeRemedies: "",
-    fileAnalysis: "",
-  });
   const [file, setFile] = useState<File | null>(null);
-  const [activeTab, setActiveTab] = useState("cause");
   const [currentSymptom, setCurrentSymptom] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isAnalyzingReport, setIsAnalyzingReport] = useState(false);
   const [results, setResults] = useState<AnalysisResults | null>(null);
+  const [reportAnalysisResults, setReportAnalysisResults] = useState<AnalysisResults | null>(null);
   const [allSymptoms, setAllSymptoms] = useState<string[]>([]);
-  const [activeResultTab, setActiveResultTab] = useState<string>("cause");
+  const [activeResultTab, setActiveResultTab] = useState<ResultTabId>("cause");
+  const [errorMessage, setErrorMessage] = useState<string>("");
   const [userDetails, setUserDetails] = useState<UserInfo | null>(null);
+  const [followUpDialogOpen, setFollowUpDialogOpen] = useState(false);
+  const [currentFollowUpIndex, setCurrentFollowUpIndex] = useState(0);
+  const [followUpQuestions, setFollowUpQuestions] = useState<string[]>([]);
+  const [followUpAnswers, setFollowUpAnswers] = useState<string[]>([]);
+  const [followUpDraft, setFollowUpDraft] = useState("");
+  const [uploadedReportText, setUploadedReportText] = useState<string>("");
+  const [reportUploaded, setReportUploaded] = useState(false);
 
   useEffect(() => {
     const fetchUserDetails = async () => {
@@ -222,17 +303,19 @@ const Dashboard = () => {
   }, []);
 
   const handleSymptomToggle = (symptom: string) => {
-    setSelectedSymptoms((prev) => {
+    setAllSymptoms((prev) => {
       if (prev.includes(symptom)) {
         return prev.filter((s) => s !== symptom);
-      } else {
-        return [...prev, symptom];
       }
+      return [...prev, symptom];
     });
   };
 
-  const handleAnalyzeSymptoms = async () => {
+  const handleAnalyzeSymptoms = async (
+    followUpAnswersToSend: string[] = []
+  ) => {
     if (allSymptoms.length === 0) {
+      setErrorMessage("Please add at least one symptom.");
       toast({
         title: "Error",
         description: "Please add at least one symptom",
@@ -241,33 +324,41 @@ const Dashboard = () => {
       return;
     }
 
+    setErrorMessage("");
     setIsAnalyzing(true);
+
     try {
+      const payload = {
+        symptoms: allSymptoms,
+        followUpAnswers: followUpAnswersToSend.filter(Boolean),
+      };
+
       const [causeRes, treatmentRes, medicationRes, homeRemediesRes] =
         await Promise.all([
-          axios.post("/api/gemini/cause", { symptoms: allSymptoms }),
-          axios.post("/api/gemini/treatment", { symptoms: allSymptoms }),
-          axios.post("/api/gemini/medication", { symptoms: allSymptoms }),
-          axios.post("/api/gemini/home-remedies", { symptoms: allSymptoms }),
+          axios.post("/api/gemini/cause", payload),
+          axios.post("/api/gemini/treatment", payload),
+          axios.post("/api/gemini/medication", payload),
+          axios.post("/api/gemini/home-remedies", payload),
         ]);
 
       const newResults: AnalysisResults = {
-        cause: causeRes.data.responseText,
-        treatment: treatmentRes.data.responseText,
-        medication: medicationRes.data.responseText,
-        homeRemedies: homeRemediesRes.data.responseText,
-        fileAnalysis: "",
+        cause: causeRes.data.responseText || String(causeRes.data?.message || ""),
+        treatment:
+          treatmentRes.data.responseText || String(treatmentRes.data?.message || ""),
+        medication:
+          medicationRes.data.responseText || String(medicationRes.data?.message || ""),
+        homeRemedies:
+          homeRemediesRes.data.responseText || String(homeRemediesRes.data?.message || ""),
+        fileAnalysis: results?.fileAnalysis || "",
       };
 
-      setAnalysisResults(newResults);
       setResults(newResults);
       setActiveResultTab("cause");
 
-      // Save to history
       const userData = JSON.parse(localStorage.getItem("userData") || "{}");
       const token = localStorage.getItem("token");
 
-      if (userData._id) {
+      if (userData._id && token) {
         try {
           await axios.post(
             "/api/gemini/save-history",
@@ -282,11 +373,11 @@ const Dashboard = () => {
               },
             }
           );
-        } catch (error) {
-          console.error("Failed to save history:", error);
+        } catch (historyError) {
+          console.error("Failed to save history:", historyError);
           toast({
             title: "Warning",
-            description: "Analysis completed but failed to save history",
+            description: "Analysis completed but failed to save history.",
             variant: "destructive",
           });
         }
@@ -298,6 +389,7 @@ const Dashboard = () => {
       });
     } catch (error) {
       console.error("Analysis error:", error);
+      setErrorMessage("Unable to analyze symptoms. Please try again.");
       toast({
         variant: "destructive",
         title: "Analysis Failed",
@@ -325,10 +417,19 @@ const Dashboard = () => {
   };
 
   const handleAddSymptom = () => {
-    if (currentSymptom.trim()) {
-      setAllSymptoms([...allSymptoms, currentSymptom.trim()]);
-      setCurrentSymptom("");
+    const symptom = currentSymptom.trim();
+    if (!symptom) {
+      return;
     }
+
+    if (allSymptoms.includes(symptom)) {
+      setErrorMessage("This symptom is already added.");
+      return;
+    }
+
+    setAllSymptoms((prev) => [...prev, symptom]);
+    setCurrentSymptom("");
+    setErrorMessage("");
   };
 
   const handleRemoveSymptom = (index: number) => {
@@ -350,77 +451,277 @@ const Dashboard = () => {
       }
 
       setFile(selectedFile);
-      toast({
-        title: "File selected",
-        description: selectedFile.name,
-      });
+      toast({ title: "Uploading report...", description: selectedFile.name });
+
+      // Upload file to backend for text extraction only. Do NOT run analysis here.
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      axios
+        .post("/api/gemini/upload", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        })
+        .then((resp) => {
+          if (resp.data?.success) {
+            const fileText = resp.data.fileText || "";
+            // Store the extracted text and mark uploaded, but do not analyze yet.
+            setUploadedReportText(fileText);
+            setReportUploaded(true);
+            toast({ title: "Uploaded", description: "Report uploaded. Click Analyze Report to start analysis." });
+          } else {
+            toast({ title: "Upload failed", description: resp.data?.message || "Failed to process file", variant: "destructive" });
+          }
+        })
+        .catch((err) => {
+          console.error("Upload error:", err);
+          toast({ title: "Upload error", description: "Could not upload report", variant: "destructive" });
+        });
+    }
+  };
+
+  const handleAnalyzeUploadedReport = async () => {
+    if (!uploadedReportText) {
+      toast({ title: "No report", description: "Upload a report first.", variant: "destructive" });
+      return;
+    }
+
+    setIsAnalyzingReport(true);
+    try {
+      const resp = await axios.post("/api/gemini/analyze-upload", { fileContent: uploadedReportText });
+      if (resp.data?.success) {
+        const fullText = resp.data.responseText || "";
+        // Keep parsed report results separate from symptom analysis results.
+        const parsed = parseReportAnalysis(fullText);
+        // If parsed sections are all empty, warn the user that AI did not return structured sections
+        if (!parsed.cause && !parsed.treatment && !parsed.medication && !parsed.homeRemedies) {
+          toast({ title: "Analysis returned no structured data", description: "The report was analyzed but no structured CAUSE/TREATMENT/MEDICATION/HOME REMEDIES sections were detected. Try re-uploading or run symptom analysis.", variant: "destructive" });
+        }
+        setReportAnalysisResults({
+          cause: parsed.cause,
+          treatment: parsed.treatment,
+          medication: parsed.medication,
+          homeRemedies: parsed.homeRemedies,
+          fileAnalysis: fullText,
+        });
+
+        // Merge parsed report fields into results only if symptom-based values are missing.
+        setResults((prev) => {
+          const existing = prev || ({ cause: "", treatment: "", medication: "", homeRemedies: "", fileAnalysis: "" } as AnalysisResults);
+          return {
+            cause: existing.cause || parsed.cause,
+            treatment: existing.treatment || parsed.treatment,
+            medication: existing.medication || parsed.medication,
+            homeRemedies: existing.homeRemedies || parsed.homeRemedies,
+            fileAnalysis: fullText,
+          } as AnalysisResults;
+        });
+        setActiveResultTab("fileAnalysis");
+        setReportUploaded(false);
+        toast({ title: "Report analyzed", description: "Report analysis is ready." });
+      } else {
+        toast({ title: "Analysis failed", description: resp.data?.message || "Failed to analyze report", variant: "destructive" });
+      }
+    } catch (err) {
+      console.error("Analyze report error:", err);
+      toast({ title: "Analysis error", description: "Unable to analyze report. Try again.", variant: "destructive" });
+    } finally {
+      setIsAnalyzingReport(false);
     }
   };
 
   const handleAnalyze = async () => {
-    setIsAnalyzing(true);
-    try {
-      await handleAnalyzeSymptoms();
-      setResults(analysisResults);
-    } catch (error) {
-      console.error(error);
+    if (allSymptoms.length === 0) {
+      setErrorMessage("Please add at least one symptom.");
       toast({
         title: "Error",
-        description: "Failed to analyze symptoms",
+        description: "Please add at least one symptom",
         variant: "destructive",
       });
+      return;
     }
-    setIsAnalyzing(false);
+
+    const questions = getFollowUpQuestions(allSymptoms);
+    setFollowUpQuestions(questions);
+    setFollowUpDialogOpen(true);
+    setCurrentFollowUpIndex(0);
+    setFollowUpAnswers(Array(questions.length).fill(""));
+    setFollowUpDraft("");
+  };
+
+  const handleStoreFollowUpAnswer = (answer: string) => {
+    setFollowUpDraft(answer);
+    setFollowUpAnswers((prev) => {
+      const next = [...prev];
+      next[currentFollowUpIndex] = answer;
+      return next;
+    });
+  };
+
+  const handleFollowUpPrevious = () => {
+    setFollowUpAnswers((prev) => {
+      const next = [...prev];
+      next[currentFollowUpIndex] = followUpDraft;
+      return next;
+    });
+    const previousIndex = Math.max(0, currentFollowUpIndex - 1);
+    setCurrentFollowUpIndex(previousIndex);
+    setFollowUpDraft(followUpAnswers[previousIndex] || "");
+  };
+
+  const handleFollowUpNext = () => {
+    if (!followUpDraft.trim()) {
+      toast({
+        title: "Please answer the question",
+        description: "Your response helps create a more accurate analysis.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setFollowUpAnswers((prev) => {
+      const next = [...prev];
+      next[currentFollowUpIndex] = followUpDraft;
+      return next;
+    });
+
+    const nextIndex = Math.min(
+      followUpQuestions.length - 1,
+      currentFollowUpIndex + 1
+    );
+    setCurrentFollowUpIndex(nextIndex);
+    setFollowUpDraft(followUpAnswers[nextIndex] || "");
+  };
+
+  const handleFollowUpSubmit = async () => {
+    if (!followUpDraft.trim()) {
+      toast({
+        title: "Please answer the question",
+        description: "Your response helps create a more accurate analysis.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const finalAnswers = followUpAnswers.map((answer, index) =>
+      index === currentFollowUpIndex ? followUpDraft : answer
+    );
+    setFollowUpDialogOpen(false);
+    await handleAnalyzeSymptoms(finalAnswers);
+  };
+
+  const handleFollowUpDialogOpenChange = (open: boolean) => {
+    if (!open) {
+      const allAnswered = followUpAnswers.every((a) => a && a.trim());
+      if (!allAnswered) {
+        toast({
+          title: "Please complete follow-up questions",
+          description: "Answer all follow-up questions before closing.",
+          variant: "destructive",
+        });
+        setFollowUpDialogOpen(true);
+        return;
+      }
+    }
+    setFollowUpDialogOpen(open);
   };
 
   const handleDownloadResults = async () => {
-    const currentDate = new Date().toLocaleDateString();
+    if (!results && !reportAnalysisResults) {
+      toast({
+        title: "Error",
+        description: "No analysis results available to generate a prescription.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    // Format date of birth if available
+    const currentDate = new Date().toLocaleDateString();
     const formattedDob = userDetails?.dob
       ? new Date(userDetails.dob).toLocaleDateString()
       : "Not provided";
 
+    // Prefer symptom analysis results; fall back to report analysis when missing.
+    const medSource = (results && results.medication) || reportAnalysisResults?.medication || "";
+    const causeSource = (results && results.cause) || reportAnalysisResults?.cause || "";
+    const treatmentSource = (results && results.treatment) || reportAnalysisResults?.treatment || "";
+    const remediesSource = (results && results.homeRemedies) || reportAnalysisResults?.homeRemedies || "";
+
+    // Convert sources to safe HTML blocks (preserve line breaks)
+    const medHtml = String(medSource || "")
+      .replace(/<br\s*\/?>(?:\s*)/gi, "\n")
+      .replace(/\n+/g, "\n")
+      .trim()
+      .replace(/\n/g, "<br />");
+    const causeHtml = String(causeSource || "")
+      .replace(/\n+/g, "\n")
+      .trim()
+      .replace(/\n/g, "<br />");
+    const treatmentHtml = String(treatmentSource || "")
+      .replace(/\n+/g, "\n")
+      .trim()
+      .replace(/\n/g, "<br />");
+    const remediesHtml = String(remediesSource || "")
+      .replace(/\n+/g, "\n")
+      .trim()
+      .replace(/\n/g, "<br />");
+
+    // Prevent creating a blank prescription when AI returned no medication/treatment/cause/remedies
+    const hasAnyContent = [medSource, causeSource, treatmentSource, remediesSource].some(
+      (v) => v && String(v).trim()
+    );
+
+    if (!hasAnyContent) {
+      toast({ title: "No prescription data", description: "AI did not provide medication, treatment or remedies to generate a prescription.", variant: "destructive" });
+      return;
+    }
+
     const prescription = document.createElement("div");
     prescription.innerHTML = `
-      <div style="padding: 40px; max-width: 800px; margin: 0 auto; font-family: Arial, sans-serif;">
-        <div style="border: 2px solid #2563eb; padding: 20px; border-radius: 8px;">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; color: #0f172a;">
+        <div style="max-width: 820px; margin: 0 auto; padding: 28px; background: #ffffff;">
+          <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e6eef8;padding-bottom:16px;">
             <div>
-              <h1 style="color: #2563eb; font-size: 24px; margin: 0;">QuickMed AI Doctor</h1>
-              <p style="color: #64748b; margin: 5px 0;">AI-Powered Health Assistant</p>
-              <p style="margin: 5px 0;">Date: ${currentDate}</p>
+              <h1 style="margin:0;font-size:22px;color:#0ea5e9;letter-spacing:0.2px;">QuickMed</h1>
+              <div style="font-size:12px;color:#64748b;margin-top:4px;">AI-Powered Health Assistant</div>
             </div>
-            <div style="text-align: right;">
-              <img src="data:image/png;base64,..." alt="QuickMed Logo" style="width: 80px;"/>
+            <div style="text-align:right;font-size:12px;color:#475569;">Date: ${currentDate}</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px;padding:12px 0;border-bottom:1px dashed #e6eef8;">
+            <div>
+              <div style="font-size:12px;color:#64748b;">Patient</div>
+              <div style="font-weight:600;font-size:14px;color:#0f172a;">${userDetails?.name || "[Patient Name]"}</div>
+            </div>
+            <div>
+              <div style="font-size:12px;color:#64748b;">DOB / Gender</div>
+              <div style="font-weight:600;font-size:14px;color:#0f172a;">${formattedDob} · ${userDetails?.gender || "Not provided"}</div>
             </div>
           </div>
-          
-          <div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 15px;">
-            <p><strong>Patient:</strong> ${
-              userDetails?.name || "[Patient Name]"
-            }</p>
-            <p><strong>DOB:</strong> ${formattedDob}</p>
-            <p><strong>Gender:</strong> ${
-              userDetails?.gender || "[Not Provided]"
-            }</p>
-          </div>
-          
-          <div style="border-bottom: 1px solid #e2e8f0; padding: 15px 0;">
-            <h2 style="color: #1e40af; font-size: 18px; margin-bottom: 15px;">Prescribed Medications</h2>
-            ${analysisResults.medication}
-          </div>
-          
-          <div style="margin-top: 40px;">
-            <div style="border-top: 1px solid #e2e8f0; padding-top: 20px;">
-              <p style="margin: 5px 0;"><strong>Doctor's Signature:</strong></p>
-              <div style="font-family: 'Dancing Script', cursive; font-size: 24px; color: #2563eb; margin-top: 10px;">
-                QuickMed AI
+
+          <div style="display:flex;gap:18px;margin-top:18px;">
+            <div style="flex:1;">
+              <h2 style="margin:0 0 8px 0;color:#0f172a;font-size:16px;">Prescribed Medications</h2>
+              <div style="font-size:13px;color:#374151;line-height:1.45;">
+                ${medHtml || '<span style="color:#9ca3af;">No medications suggested.</span>'}
               </div>
-              <p style="font-size: 12px; color: #64748b; margin-top: 20px;">
-                This is an AI-generated prescription for reference only.<br>
-                Please consult a healthcare professional before taking any medication.
-              </p>
+
+              <h3 style="margin:18px 0 8px 0;color:#0f172a;font-size:15px;">Treatment</h3>
+              <div style="font-size:13px;color:#374151;line-height:1.45;">${treatmentHtml || '<span style="color:#9ca3af;">No treatment suggestions.</span>'}</div>
+
+              <h3 style="margin:18px 0 8px 0;color:#0f172a;font-size:15px;">Home Remedies</h3>
+              <div style="font-size:13px;color:#374151;line-height:1.45;">${remediesHtml || '<span style="color:#9ca3af;">No home remedies suggested.</span>'}</div>
+            </div>
+
+            <div style="width:260px;">
+              <div style="background:#f8fafc;border-radius:12px;padding:12px;border:1px solid #eef2f7;">
+                <div style="font-size:13px;color:#6b7280;font-weight:600;">Possible Cause</div>
+                <div style="margin-top:8px;font-size:13px;color:#374151;line-height:1.4;">${causeHtml || '<span style="color:#9ca3af;">No cause determined.</span>'}</div>
+              </div>
+
+              <div style="margin-top:14px;background:linear-gradient(180deg,#eef8ff,#ffffff);border-radius:12px;padding:12px;border:1px solid #e6f0fb;">
+                <div style="font-size:12px;color:#0ea5e9;font-weight:700;">Disclaimer</div>
+                <div style="margin-top:8px;font-size:11px;color:#64748b;">This is an AI-generated prescription intended for reference only. Consult a qualified healthcare professional before starting any medication.</div>
+              </div>
             </div>
           </div>
         </div>
@@ -428,7 +729,7 @@ const Dashboard = () => {
     `;
 
     const opt = {
-      margin: 1,
+      margin: 8,
       filename: `quickmed-prescription-${currentDate}.pdf`,
       image: { type: "jpeg", quality: 0.98 },
       html2canvas: { scale: 2 },
@@ -450,24 +751,77 @@ const Dashboard = () => {
     }
   };
 
-  const handleFindDoctor = async () => {
-    try {
-      if (allSymptoms.length === 0) {
-        toast({
-          title: "Error",
-          description: "Please add symptoms first",
-          variant: "destructive",
-        });
-        return;
+  const parseReportAnalysis = (text: string) => {
+    // More robust parser:
+    // - Accept headings with or without trailing colon
+    // - Accept headings with inline content (e.g. "CAUSE: Viral infection")
+    // - Case-insensitive matching
+    const normalized = text.replace(/\r/g, "").trim();
+    const lines = normalized.split(/\r?\n/);
+    const headings = [
+      "CAUSE",
+      "TREATMENT",
+      "MEDICATION",
+      "HOME REMEDIES",
+      "HOME-REMEDY",
+      "HOME-REMEDIES",
+      "SUMMARY",
+    ];
+
+    const sections: { [key: string]: string } = {};
+    let current: string | null = null;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line) {
+        // preserve blank lines inside a section
+        if (current) sections[current] += "\n";
+        continue;
       }
 
+      // Match heading at line start, optionally with colon and inline content
+      const m = line.match(/^\s*(CAUSE|TREATMENT|MEDICATION|HOME REMEDIES|HOME-REMEDY|HOME-REMEDIES|SUMMARY)\s*[:\-]?\s*(.*)$/i);
+      if (m) {
+        current = m[1].toUpperCase().trim();
+        sections[current] = (m[2] || "").trim();
+        continue;
+      }
+
+      if (current) {
+        sections[current] = (sections[current] + "\n" + line).trim();
+      }
+    }
+
+    const pick = (keys: string[]) => {
+      for (const k of keys) {
+        const up = k.toUpperCase();
+        if (sections[up] && sections[up].trim()) return sections[up].trim();
+      }
+      return "";
+    };
+
+    return {
+      cause: pick(["CAUSE"]),
+      treatment: pick(["TREATMENT"]),
+      medication: pick(["MEDICATION"]),
+      homeRemedies: pick(["HOME REMEDIES", "HOME-REMEDY", "HOME-REMEDIES"]),
+      summary: pick(["SUMMARY"]),
+    };
+  };
+
+  const handleFindDoctor = async () => {
+    if (allSymptoms.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please add symptoms first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
       const speciality = await determineSpeciality(allSymptoms);
       const practoURL = generatePractoURL(speciality);
-
-      // Log for debugging
-      console.log("Speciality:", speciality);
-      console.log("Practo URL:", practoURL);
-
       window.open(practoURL, "_blank");
     } catch (error) {
       console.error("Error finding doctor:", error);
@@ -479,14 +833,14 @@ const Dashboard = () => {
     }
   };
 
-  const resultTabs = [
+  const resultTabs: ResultTab[] = [
     {
       id: "cause",
       title: "Possible Cause",
       icon: "🔍",
       color: "from-amber-500 to-orange-600",
       bgColor: "bg-amber-50",
-      content: analysisResults.cause,
+      content: results?.cause || "",
     },
     {
       id: "treatment",
@@ -494,7 +848,7 @@ const Dashboard = () => {
       icon: "💊",
       color: "from-blue-500 to-blue-600",
       bgColor: "bg-blue-50",
-      content: analysisResults.treatment,
+      content: results?.treatment || "",
     },
     {
       id: "medication",
@@ -502,18 +856,18 @@ const Dashboard = () => {
       icon: "💉",
       color: "from-green-500 to-green-600",
       bgColor: "bg-green-50",
-      content: analysisResults.medication,
+      content: results?.medication || "",
     },
     {
-      id: "remedies",
+      id: "homeRemedies",
       title: "Home Remedies",
       icon: "🏠",
       color: "from-purple-500 to-purple-600",
       bgColor: "bg-purple-50",
-      content: analysisResults.homeRemedies,
+      content: results?.homeRemedies || "",
     },
   ].concat(
-    analysisResults.fileAnalysis
+    results?.fileAnalysis
       ? [
           {
             id: "fileAnalysis",
@@ -521,11 +875,14 @@ const Dashboard = () => {
             icon: "📄",
             color: "from-teal-500 to-teal-600",
             bgColor: "bg-teal-50",
-            content: analysisResults.fileAnalysis,
+            content: results.fileAnalysis,
           },
         ]
       : []
   );
+
+  const activeTab =
+    resultTabs.find((tab) => tab.id === activeResultTab) || resultTabs[0];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
@@ -562,7 +919,7 @@ const Dashboard = () => {
         </div>
       </motion.header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="relative z-10 container mx-auto px-4 py-8">
         {/* Welcome Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -682,6 +1039,35 @@ const Dashboard = () => {
                       )}
                     </span>
                   </label>
+                  {reportUploaded && (
+                    <div className="mt-3 flex gap-2">
+                                  <Button
+                                    onClick={handleAnalyzeUploadedReport}
+                                    className="w-full"
+                                    disabled={isAnalyzingReport}
+                                  >
+                                    {isAnalyzingReport ? (
+                                      <div className="flex items-center gap-2">
+                                        <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                                        <span>Analyzing...</span>
+                                      </div>
+                                    ) : (
+                                      <span>Analyze Report</span>
+                                    )}
+                                  </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setUploadedReportText("");
+                          setReportUploaded(false);
+                          setFile(null);
+                          toast({ title: "Cleared", description: "Uploaded report cleared." });
+                        }}
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 <Button
@@ -701,6 +1087,9 @@ const Dashboard = () => {
                     </span>
                   )}
                 </Button>
+                {errorMessage && (
+                  <p className="mt-3 text-sm text-red-600">{errorMessage}</p>
+                )}
               </div>
             </div>
           </motion.div>
@@ -756,8 +1145,59 @@ const Dashboard = () => {
           </motion.div>
         </div>
 
+        <Dialog open={followUpDialogOpen} onOpenChange={handleFollowUpDialogOpenChange}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Follow-up Questions</DialogTitle>
+              <DialogDescription>
+                Answer a few quick questions so the analysis can feel more
+                like a real doctor consultation.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-medium text-slate-700">
+                  Question {currentFollowUpIndex + 1} of {followUpQuestions.length}
+                </p>
+                <p className="mt-3 text-base text-slate-900">
+                  {followUpQuestions[currentFollowUpIndex] || "Answer a few quick questions to help improve the analysis."}
+                </p>
+              </div>
+
+              <textarea
+                value={followUpDraft}
+                onChange={(e) => handleStoreFollowUpAnswer(e.target.value)}
+                rows={5}
+                className="w-full rounded-xl border border-slate-300 bg-white p-4 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                placeholder="Type your answer here..."
+              />
+            </div>
+
+            <DialogFooter className="mt-4">
+              <Button
+                variant="outline"
+                onClick={handleFollowUpPrevious}
+                disabled={currentFollowUpIndex === 0}
+              >
+                Previous
+              </Button>
+              <div className="flex items-center gap-2">
+                {currentFollowUpIndex < followUpQuestions.length - 1 ? (
+                  <Button onClick={handleFollowUpNext}>
+                    Next
+                  </Button>
+                ) : (
+                  <Button onClick={handleFollowUpSubmit}>
+                    Submit
+                  </Button>
+                )}
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Analysis Results Section */}
-        {results && (
+        {results ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -777,6 +1217,14 @@ const Dashboard = () => {
                   Quick Prescription
                 </Button>
                 <Button
+                  onClick={() => setActiveResultTab("fileAnalysis")}
+                  variant="outline"
+                  className="text-sm"
+                >
+                  <FileText className="h-4 w-4 mr-1" />
+                  Report Analysis
+                </Button>
+                <Button
                   onClick={handleFindDoctor}
                   className="bg-blue-600 hover:bg-blue-700 text-sm"
                 >
@@ -787,47 +1235,83 @@ const Dashboard = () => {
             </div>
 
             <div className="space-y-6">
-              <div className="flex flex-wrap gap-2">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {resultTabs.map((tab) => (
-                  <Button
+                  <div
                     key={tab.id}
-                    variant={activeResultTab === tab.id ? "default" : "outline"}
                     onClick={() => setActiveResultTab(tab.id)}
-                    className={`${
-                      activeResultTab === tab.id ? "bg-blue-600 text-white" : ""
+                    className={`cursor-pointer rounded-[1.75rem] border p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${
+                      activeResultTab === tab.id
+                        ? "border-blue-200 bg-gradient-to-br from-sky-50 to-white shadow-lg"
+                        : "border-slate-200 bg-white"
                     }`}
                   >
-                    <span className="mr-2">{tab.icon}</span>
-                    {tab.title}
-                  </Button>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 text-lg shadow-sm">
+                        {tab.icon}
+                      </span>
+                      <span className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                        Tap to view
+                      </span>
+                    </div>
+                    <h3 className="mt-4 text-base font-semibold text-slate-900">
+                      {tab.title}
+                    </h3>
+                    <p className="mt-3 text-sm leading-6 text-slate-600 h-16 overflow-hidden text-ellipsis">
+                      {tab.content
+                        ? `${tab.content.replace(/\n+/g, " ").slice(0, 120)}${
+                            tab.content.length > 120 ? "..." : ""
+                          }`
+                        : "Run the analysis to see results here."}
+                    </p>
+                  </div>
                 ))}
               </div>
 
-              <Card className="bg-white border-none shadow-sm">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base font-medium flex items-center gap-2">
-                    {resultTabs.find((tab) => tab.id === activeResultTab)?.icon}{" "}
-                    {
-                      resultTabs.find((tab) => tab.id === activeResultTab)
-                        ?.title
-                    }
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-gray-600">
-                  {typeof resultTabs.find((tab) => tab.id === activeResultTab)
-                    ?.content === "string" ? (
-                    <ReactMarkdown>
-                      {resultTabs.find((tab) => tab.id === activeResultTab)
-                        ?.content || ""}
-                    </ReactMarkdown>
-                  ) : (
-                    <p>No content available</p>
-                  )}
-                </CardContent>
-              </Card>
+              <div className="grid gap-4 xl:grid-cols-[1.4fr_0.85fr] items-start">
+                <Card className="rounded-[2rem] border border-slate-200 bg-white shadow-xl">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-xl font-semibold text-slate-900 flex items-center gap-3">
+                      <span>{activeTab.icon}</span>
+                      {activeTab.title}
+                    </CardTitle>
+                    <p className="mt-2 text-sm text-slate-500">
+                      Detailed recommendations and explanation for the selected section.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-6 text-sm text-slate-700">
+                    {activeTab.content ? (
+                      <div className="prose prose-slate max-w-none">
+                        <ReactMarkdown>{activeTab.content}</ReactMarkdown>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500">
+                        No content available yet. Please run the analysis to view the details.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <div className="space-y-4">
+                  <div className="rounded-[2rem] border border-slate-200 bg-slate-50 p-5 shadow-sm">
+                    <h3 className="text-base font-semibold text-slate-900">Quick insight</h3>
+                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                      {activeTab.content
+                        ? activeTab.content.split("\n")[0]
+                        : "Analyze your symptoms to generate a smart summary for this section."}
+                    </p>
+                  </div>
+                  <div className="rounded-[2rem] border border-slate-200 bg-gradient-to-br from-blue-50 to-white p-5 shadow-sm">
+                    <h3 className="text-base font-semibold text-slate-900">Pro tip</h3>
+                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                      Use complete symptom details and follow-up answers to get sharper cause, treatment, medication and remedy suggestions.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </motion.div>
-        )}
+        ) : null}
       </main>
     </div>
   );

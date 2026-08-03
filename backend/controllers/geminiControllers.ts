@@ -3,56 +3,77 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const API_KEY = process.env.GEMINI_API_KEY;
-const BASE_URL = "https://generativelanguage.googleapis.com";
-const API_VERSION = "v1beta";
-const MODEL = "gemini-2.0-flash";
+const API_KEY = process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY;
+const BASE_URL = "https://api.groq.com/openai";
+const MODEL = "llama-3.3-70b-versatile";
 
-export default async function askGemini(
+export default async function askGroq(
   query: string,
   params: string
 ): Promise<string> {
   if (!API_KEY) {
     throw new Error(
-      "GEMINI_API_KEY is not configured in environment variables"
+      "GROQ_API_KEY or GEMINI_API_KEY is not configured in environment variables"
     );
   }
 
   try {
     const response = await axios.post(
-      `${BASE_URL}/${API_VERSION}/models/${MODEL}:generateContent`,
+      `${BASE_URL}/v1/chat/completions`,
       {
-        contents: [
+        model: MODEL,
+        messages: [
           {
-            parts: [
-              {
-                text: `${query}\n${params}`,
-              },
-            ],
-          },
-        ],
+            role: "user",
+            content: `${query}\n${params}`
+          }
+        ]
       },
       {
         headers: {
+          Authorization: `Bearer ${API_KEY}`,
           "Content-Type": "application/json",
-        },
-        params: {
-          key: API_KEY,
         },
       }
     );
+    console.log(JSON.stringify(response.data, null, 2));
+    const output = response.data?.choices?.[0]?.message?.content;
 
-    if (!response.data?.candidates?.[0]?.content?.parts?.[0]?.text) {
-      throw new Error("Invalid response format from Gemini API");
+    if (!output) {
+      throw new Error("Invalid response format from Groq API");
     }
 
-    return response.data.candidates[0].content.parts[0].text;
+    if (typeof output === "string") {
+      return output;
+    }
+
+    if (Array.isArray(output)) {
+      return output
+        .map((item) => {
+          if (typeof item === "string") {
+            return item;
+          }
+          if (item?.content) {
+            return item.content
+              .map((part: any) => part?.text || "")
+              .join("");
+          }
+          return JSON.stringify(item);
+        })
+        .join(" ");
+    }
+
+    return String(output);
   } catch (error) {
     if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      const data = error.response?.data;
+      console.error("Groq Axios error:", status, data);
       const errorMessage =
-        error.response?.data?.error?.message || "Unknown error";
-      throw new Error(`Gemini API Error: ${errorMessage}`);
+        data?.error?.message || data?.message || JSON.stringify(data) || error.message || "Unknown error";
+      throw new Error(`Groq API Error: ${errorMessage}`);
     }
+    console.error("Groq non-Axios error:", error);
     throw error;
   }
 }

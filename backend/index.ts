@@ -11,8 +11,6 @@ connectDatabse();
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:8080",
-
-/ Vercel not working /
   "https://quickmed-animeshog.vercel.app", // Add your Vercel domain
 ];
 
@@ -58,13 +56,14 @@ app.get("/", (_req: Request, res: Response): void => {
   });
 });
 
+// Add health route before catch-all
+app.get("/health", (req: Request, res: Response) => {
+  res.status(200).json({ status: "ok" });
+});
+
 // Add catch-all route handler
 app.use("*", (req: Request, res: Response) => {
   res.status(404).json({ message: `Route ${req.baseUrl} not found` });
-});
-
-app.get("/health", (req: Request, res: Response) => {
-  res.status(200).json({ status: "ok" });
 });
 
 app.use(

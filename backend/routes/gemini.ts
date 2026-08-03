@@ -30,20 +30,28 @@ const upload = multer({
 
 const router = Router();
 
-// Helper function to format patient details and symptoms
+const formatFollowUpAnswers = (answers: string[] = []) => {
+  if (!answers.length) return "";
+  return `Follow-up answers:\n${answers
+    .filter(Boolean)
+    .map((answer, index) => `${index + 1}. ${answer}`)
+    .join("\n")}\n\n`;
+};
 
 // Endpoint for potential cause
 router.post("/cause", async (req: Request, res: Response): Promise<void> => {
   try {
     const symptoms = req.body.symptoms || [];
-    const fileText = req.body.fileText || "";
+    const followUpAnswers = req.body.followUpAnswers || [];
 
     if (!symptoms.length) {
       res.status(400).json({ message: "Symptoms are required" });
       return;
     }
 
-    const prompt = `Based on these symptoms: ${symptoms.join(", ")}, provide:
+    const followUpSection = formatFollowUpAnswers(followUpAnswers);
+    const prompt = `Based on these symptoms: ${symptoms.join(", ")}
+${followUpSection}provide:
 
 CAUSE:
 [Most likely cause]
@@ -51,7 +59,10 @@ CAUSE:
 EXPLANATION:
 [Brief explanation of why this might be the cause, 2-3 lines max]`;
 
-    const geminiResponse = await askGemini(prompt, symptoms.join(", "));
+    const geminiResponse = await askGemini(
+      prompt,
+      `${symptoms.join(", ")}${followUpAnswers.length ? `\n\n${followUpSection}` : ""}`
+    );
 
     res.status(200).json({
       responseText: geminiResponse,
@@ -68,17 +79,22 @@ router.post(
   "/treatment",
   async (req: Request, res: Response): Promise<void> => {
     try {
+      const symptoms = req.body.symptoms || [];
+      const followUpAnswers = req.body.followUpAnswers || [];
+      const followUpSection = formatFollowUpAnswers(followUpAnswers);
+
       const prompt = `List 3 key treatment steps for these symptoms in bullet points. Keep each point to one line:
 
 • [Step 1]
 • [Step 2]
 • [Step 3]
 
-Symptoms: ${(req.body.symptoms as string[]).join(", ")}`;
+Symptoms: ${symptoms.join(", ")}
+${followUpSection}`;
 
       const geminiResponse = await askGemini(
         prompt,
-        (req.body.symptoms as string[]).join(", ")
+        `${symptoms.join(", ")}${followUpAnswers.length ? `\n\n${followUpSection}` : ""}`
       );
 
       res.status(200).json({
@@ -99,36 +115,37 @@ router.post(
   "/medication",
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const prompt = `Based on these symptoms: ${(
-        req.body.symptoms as string[]
-      ).join(
-        ", "
-      )}, provide only essential medication details in this EXACT format:
+      const symptoms = req.body.symptoms || [];
+      const followUpAnswers = req.body.followUpAnswers || [];
+      const followUpSection = formatFollowUpAnswers(followUpAnswers);
+
+      const prompt = `Based on these symptoms: ${symptoms.join(", ")}
+${followUpSection}provide only essential medication details in this EXACT format:
 
 Medication 1:
 - Name: [medicine name]
 - Power: [strength in mg/ml]
 - Dose: [how many times per day]
 - Duration: [for how many days]
-<br>
+
 Medication 2:
 - Name: [medicine name]
 - Power: [strength in mg/ml]
 - Dose: [how many times per day]
 - Duration: [for how many days]
-<br>
+
 Note: List only 2-3 common over-the-counter medications. No descriptions, side effects, or additional information.`;
 
       const geminiResponse = await askGemini(
         prompt,
-        req.body.symptoms.join(", ")
+        `${symptoms.join(", ")}${followUpAnswers.length ? `\n\n${followUpSection}` : ""}`
       );
 
-      // Clean and format the response
-      const formattedResponse = geminiResponse.replace(
-        /Medication \d+:/g,
-        "<br>Medication $&"
-      );
+      // Clean and format the response to plain text
+      const formattedResponse = geminiResponse
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/Medication \d+:/g, "\n$&")
+        .trim();
 
       res.status(200).json({
         responseText: formattedResponse,
@@ -148,16 +165,21 @@ router.post(
   "/home-remedies",
   async (req: Request, res: Response): Promise<void> => {
     try {
+      const symptoms = req.body.symptoms || [];
+      const followUpAnswers = req.body.followUpAnswers || [];
+      const followUpSection = formatFollowUpAnswers(followUpAnswers);
+
       const prompt = `Give 2 simple home remedies for these symptoms. Format as:
 
 1. [Remedy] | [Brief instructions]
 2. [Remedy] | [Brief instructions]
 
-Symptoms: ${(req.body.symptoms as string[]).join(", ")}`;
+Symptoms: ${symptoms.join(", ")}
+${followUpSection}`;
 
       const geminiResponse = await askGemini(
         prompt,
-        (req.body.symptoms as string[]).join(", ")
+        `${symptoms.join(", ")}${followUpAnswers.length ? `\n\n${followUpSection}` : ""}`
       );
 
       res.status(200).json({
@@ -215,6 +237,8 @@ router.post(
   }
 );
 
+// Upload endpoint: extract text from file but DO NOT run AI analysis yet.
+// This lets the frontend control when analysis should run.
 router.post(
   "/upload",
   upload.single("file"),
@@ -239,26 +263,10 @@ router.post(
           return;
         }
 
-        const prompt = `Analyze this medical report and provide a clear summary in this format:
-
-KEY FINDINGS:
-- List the main findings
-- Include any abnormal values
-- Note important metrics
-
-RECOMMENDATIONS:
-- Suggest follow-up actions
-- Note any concerning values
-- Provide general health advice
-
-Medical Report Content:
-${fileContent}`;
-
-        const geminiResponse = await askGemini(prompt, fileContent);
-
+        // Return extracted text to frontend but do not call the AI here.
         res.status(200).json({
           success: true,
-          responseText: geminiResponse,
+          fileText: fileContent,
         });
       } catch (error) {
         console.error("File processing error:", error);
@@ -274,6 +282,51 @@ ${fileContent}`;
         message:
           error instanceof Error ? error.message : "Failed to upload file",
       });
+    }
+  }
+);
+
+// Analyze uploaded file text. This endpoint runs the AI analysis on previously
+// extracted file text. Separated so frontend can control when analysis runs.
+router.post(
+  "/analyze-upload",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const fileContent = req.body.fileContent || "";
+      if (!fileContent) {
+        res.status(400).json({ success: false, message: "fileContent is required" });
+        return;
+      }
+
+      const prompt = `Analyze this medical report and provide a clear, structured output with the following labeled sections exactly as shown (use the exact headings):
+
+      CAUSE:
+      - Provide the most likely cause(s) in 1-2 concise lines.
+
+      TREATMENT:
+      - List 3 brief treatment steps or recommendations (one per line).
+
+      MEDICATION:
+      - List 2-3 recommended medications in the format: Name | Dose | Frequency | Duration (no additional notes).
+
+      HOME REMEDIES:
+      - Provide 2 simple home remedies or supportive care tips (one per line).
+
+      SUMMARY:
+      - A 2-3 line plain-language summary of the report's most important points.
+
+      Medical Report Content:
+      ${fileContent}`;
+
+      const geminiResponse = await askGemini(prompt, fileContent);
+
+      res.status(200).json({
+        success: true,
+        responseText: geminiResponse,
+      });
+    } catch (error) {
+      console.error("Analyze upload error:", error);
+      res.status(500).json({ success: false, message: "Failed to analyze uploaded report" });
     }
   }
 );

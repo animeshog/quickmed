@@ -148,7 +148,7 @@ const AnimatedBackground = ({
 	}, [intensity]);
 
 	return (
-		<div className="absolute inset-0 w-full h-full overflow-hidden z-0">
+		<div className="absolute inset-0 w-full h-full overflow-hidden z-0 pointer-events-none">
 			{/* Larger circle elements */}
 			{animationElementsRef.current
 				.filter((item) => item.type === "circle")

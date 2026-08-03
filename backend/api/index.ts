@@ -1,7 +1,7 @@
 import cors from "cors";
 import express from "express";
-import { gptRouter } from "./routes/gpt";
-import { medicationsRouter } from "./routes/medications";
+import { gptRouter } from "../routes/gpt";
+import { medicationsRouter } from "../routes/medications";
 import bodyParser from "body-parser";
 import userRouter from "../routes/userRoutes";
 
@@ -16,4 +16,4 @@ app.use("/gpt", gptRouter);
 app.use("/medications", medicationsRouter);
 app.use("/user", userRouter);
 
-export default router;
+export default app;
