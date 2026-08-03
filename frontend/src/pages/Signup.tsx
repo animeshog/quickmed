@@ -66,7 +66,7 @@ const Signup = () => {
     }
 
     try {
-      const response = await fetch("/api/auth/register", {
+      const response = await fetch("https://quickmed-production.up.railway.app/api/auth/register", {
         // Remove full URL, use proxy
         method: "POST",
         headers: {
