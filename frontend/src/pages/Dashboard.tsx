@@ -1203,30 +1203,38 @@ const Dashboard = () => {
             animate={{ opacity: 1, y: 0 }}
             className="mt-8"
           >
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-medium text-gray-900">
-                Analysis Results
-              </h2>
-              <div className="flex gap-3">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-900">
+                  Analysis Results
+                </h2>
+                <p className="mt-2 text-sm text-slate-500 max-w-2xl">
+                  Your latest analysis is ready. Tap any card to open the full detailed report page.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
                 <Button
                   variant="outline"
-                  onClick={handleDownloadResults}
+                  size="sm"
                   className="text-sm"
+                  onClick={() => navigate("/results", { state: { results, selectedTab: "cause" } })}
+                >
+                  View full report
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-sm"
+                  onClick={handleDownloadResults}
                 >
                   <Download className="h-4 w-4 mr-1" />
                   Quick Prescription
                 </Button>
                 <Button
-                  onClick={() => setActiveResultTab("fileAnalysis")}
-                  variant="outline"
-                  className="text-sm"
-                >
-                  <FileText className="h-4 w-4 mr-1" />
-                  Report Analysis
-                </Button>
-                <Button
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-sm text-white"
                   onClick={handleFindDoctor}
-                  className="bg-blue-600 hover:bg-blue-700 text-sm"
                 >
                   <User className="h-4 w-4 mr-1" />
                   Find Doctor
@@ -1234,81 +1242,42 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="space-y-6">
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                {resultTabs.map((tab) => (
-                  <div
-                    key={tab.id}
-                    onClick={() => setActiveResultTab(tab.id)}
-                    className={`cursor-pointer rounded-[1.75rem] border p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${
-                      activeResultTab === tab.id
-                        ? "border-blue-200 bg-gradient-to-br from-sky-50 to-white shadow-lg"
-                        : "border-slate-200 bg-white"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 text-lg shadow-sm">
-                        {tab.icon}
-                      </span>
-                      <span className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                        Tap to view
-                      </span>
-                    </div>
-                    <h3 className="mt-4 text-base font-semibold text-slate-900">
-                      {tab.title}
-                    </h3>
-                    <p className="mt-3 text-sm leading-6 text-slate-600 h-16 overflow-hidden text-ellipsis">
-                      {tab.content
-                        ? `${tab.content.replace(/\n+/g, " ").slice(0, 120)}${
-                            tab.content.length > 120 ? "..." : ""
-                          }`
-                        : "Run the analysis to see results here."}
-                    </p>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {resultTabs.map((tab) => (
+                <div
+                  key={tab.id}
+                  onClick={() =>
+                    navigate("/results", {
+                      state: { results, selectedTab: tab.id },
+                    })
+                  }
+                  className="cursor-pointer rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-lg"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span
+                      className={`inline-flex h-12 w-12 items-center justify-center rounded-3xl bg-slate-100 text-slate-900 text-lg ${tab.bgColor}`}
+                    >
+                      {tab.icon}
+                    </span>
+                    <span className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                      View details
+                    </span>
                   </div>
-                ))}
-              </div>
-
-              <div className="grid gap-4 xl:grid-cols-[1.4fr_0.85fr] items-start">
-                <Card className="rounded-[2rem] border border-slate-200 bg-white shadow-xl">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-xl font-semibold text-slate-900 flex items-center gap-3">
-                      <span>{activeTab.icon}</span>
-                      {activeTab.title}
-                    </CardTitle>
-                    <p className="mt-2 text-sm text-slate-500">
-                      Detailed recommendations and explanation for the selected section.
-                    </p>
-                  </CardHeader>
-                  <CardContent className="space-y-6 text-sm text-slate-700">
-                    {activeTab.content ? (
-                      <div className="prose prose-slate max-w-none">
-                        <ReactMarkdown>{activeTab.content}</ReactMarkdown>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-slate-500">
-                        No content available yet. Please run the analysis to view the details.
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <div className="space-y-4">
-                  <div className="rounded-[2rem] border border-slate-200 bg-slate-50 p-5 shadow-sm">
-                    <h3 className="text-base font-semibold text-slate-900">Quick insight</h3>
-                    <p className="mt-3 text-sm leading-6 text-slate-600">
-                      {activeTab.content
-                        ? activeTab.content.split("\n")[0]
-                        : "Analyze your symptoms to generate a smart summary for this section."}
-                    </p>
-                  </div>
-                  <div className="rounded-[2rem] border border-slate-200 bg-gradient-to-br from-blue-50 to-white p-5 shadow-sm">
-                    <h3 className="text-base font-semibold text-slate-900">Pro tip</h3>
-                    <p className="mt-3 text-sm leading-6 text-slate-600">
-                      Use complete symptom details and follow-up answers to get sharper cause, treatment, medication and remedy suggestions.
-                    </p>
+                  <h3 className="mt-5 text-lg font-semibold text-slate-900">
+                    {tab.title}
+                  </h3>
+                  <p className="mt-3 text-sm leading-6 text-slate-600 min-h-[72px] overflow-hidden">
+                    {tab.content
+                      ? `${tab.content.replace(/\n+/g, " ").slice(0, 120)}${
+                          tab.content.length > 120 ? "..." : ""
+                        }`
+                      : "No data available yet."}
+                  </p>
+                  <div className="mt-4 text-sm font-medium text-sky-600">
+                    Open full section →
                   </div>
                 </div>
-              </div>
+              ))}
             </div>
           </motion.div>
         ) : null}

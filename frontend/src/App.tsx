@@ -14,6 +14,7 @@ import Profile from "./pages/profile";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AnimatePresence } from "framer-motion";
 import History from "./pages/History";
+import Results from "./pages/Results";
 import Dashboard from "@/pages/Dashboard";
 
 // Create a new QueryClient
@@ -41,6 +42,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/results"
+              element={
+                <ProtectedRoute>
+                  <Results />
                 </ProtectedRoute>
               }
             />

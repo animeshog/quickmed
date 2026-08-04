@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Download } from "lucide-react";
+import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 
@@ -10,6 +11,7 @@ interface AnalysisResults {
   treatment: string;
   medication: string;
   homeRemedies: string;
+  fileAnalysis?: string;
 }
 
 const Results = () => {
@@ -17,6 +19,18 @@ const Results = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const results = (location.state?.results || {}) as AnalysisResults;
+  const selectedTab = (location.state?.selectedTab as string) || "cause";
+
+  useEffect(() => {
+    if (!results || Object.keys(results).length === 0) {
+      return;
+    }
+
+    const element = document.getElementById(selectedTab);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [results, selectedTab]);
 
   const handleDownload = () => {
     toast({
@@ -27,61 +41,157 @@ const Results = () => {
   };
 
   const sections = [
-    { title: "Possible Cause", content: results.cause, icon: "🔍" },
-    { title: "Treatment Plan", content: results.treatment, icon: "💊" },
     {
-      title: "Recommended Medication",
-      content: results.medication,
-      icon: "💉",
+      id: "cause",
+      title: "Possible Cause",
+      subtitle: "What may be contributing to your symptoms.",
+      icon: "🔍",
+      content: results.cause,
     },
-    { title: "Home Remedies", content: results.homeRemedies, icon: "🏠" },
+    {
+      id: "treatment",
+      title: "Treatment Plan",
+      subtitle: "Recommended next steps and care guidance.",
+      icon: "💊",
+      content: results.treatment,
+    },
+    {
+      id: "medication",
+      title: "Medication Guidance",
+      subtitle: "Suggested medicines and how to use them safely.",
+      icon: "💉",
+      content: results.medication,
+    },
+    {
+      id: "homeRemedies",
+      title: "Home Care",
+      subtitle: "Safe remedies and lifestyle adjustments.",
+      icon: "🏠",
+      content: results.homeRemedies,
+    },
   ];
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <Button
-            variant="outline"
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
-          </Button>
-          <Button onClick={handleDownload} className="flex items-center gap-2">
-            <Download className="h-4 w-4" />
-            Download Report
-          </Button>
-        </div>
+  const summaryText =
+    results.fileAnalysis ||
+    results.cause ||
+    "Your report summary will appear here once the analysis is complete.";
 
-        <Card className="bg-white shadow-xl rounded-xl overflow-hidden">
-          <div className="p-6 bg-gradient-to-r from-indigo-600 to-purple-700 text-white">
-            <h1 className="text-2xl font-bold">Health Analysis Report</h1>
-            <p className="text-indigo-100">
-              Detailed assessment of your symptoms
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <div className="bg-gradient-to-br from-slate-950 via-sky-900 to-cyan-700 px-6 py-10 text-white">
+        <div className="container mx-auto flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-2xl">
+            <p className="text-xs uppercase tracking-[0.32em] text-cyan-200/80">Detailed Results</p>
+            <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl">
+              Clinical report — organized, clear, and professional.
+            </h1>
+            <p className="mt-4 max-w-2xl text-base leading-8 text-slate-200/90">
+              View your diagnosis summary, treatment direction, medication guidance, and safe home care recommendations in one polished report.
             </p>
           </div>
 
-          <div className="p-6 space-y-6">
-            {sections.map((section) => (
-              <div
-                key={section.title}
-                className="border-b border-gray-100 pb-6 last:border-0"
-              >
-                <h2 className="text-xl font-semibold mb-3 flex items-center gap-2">
-                  <span>{section.icon}</span>
-                  {section.title}
-                </h2>
-                <div className="prose prose-indigo max-w-none">
-                  <ReactMarkdown>
-                    {section.content || "*No data available*"}
-                  </ReactMarkdown>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button
+              variant="outline"
+              className="border-white/30 bg-white/10 text-white hover:border-white hover:bg-white/20"
+              onClick={() => navigate(-1)}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Dashboard
+            </Button>
+            <Button
+              className="bg-white text-slate-950 hover:bg-slate-100"
+              onClick={handleDownload}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download Prescription
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-4 py-10">
+        <div className="grid gap-6 xl:grid-cols-[1.1fr_0.55fr]">
+          <div className="space-y-6">
+            <Card className="overflow-hidden rounded-[2rem] border border-slate-200 shadow-2xl shadow-slate-200/30">
+              <CardHeader className="bg-white/90 px-6 py-6">
+                <CardTitle className="text-2xl font-semibold text-slate-950">
+                  Full analysis overview
+                </CardTitle>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  This section highlights the most important findings from your latest analysis.
+                </p>
+              </CardHeader>
+              <CardContent className="bg-slate-50 px-6 py-6">
+                <div className="rounded-[1.5rem] border border-slate-200 bg-white p-6 shadow-sm">
+                  <h2 className="text-lg font-semibold text-slate-900">Report summary</h2>
+                  <p className="mt-4 text-sm leading-7 text-slate-600 whitespace-pre-line">
+                    {summaryText}
+                  </p>
                 </div>
-              </div>
+              </CardContent>
+            </Card>
+
+            {sections.map((section) => (
+              <Card
+                key={section.id}
+                id={section.id}
+                className="overflow-hidden rounded-[2rem] border border-slate-200 shadow-lg"
+              >
+                <CardHeader className="grid gap-3 bg-white px-6 py-6 sm:grid-cols-[auto_1fr] sm:items-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-3xl bg-slate-100 text-2xl">
+                    {section.icon}
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-slate-950">{section.title}</h2>
+                    <p className="mt-1 text-sm text-slate-500">{section.subtitle}</p>
+                  </div>
+                </CardHeader>
+                <CardContent className="prose prose-slate max-w-none bg-slate-50 px-6 py-6 text-slate-700">
+                  <ReactMarkdown>
+                    {section.content || "No recommendations available yet. Please return to the dashboard and run an analysis."}
+                  </ReactMarkdown>
+                </CardContent>
+              </Card>
             ))}
           </div>
-        </Card>
+
+          <aside className="space-y-6">
+            <Card className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-lg">
+              <CardHeader className="px-6 py-6">
+                <CardTitle className="text-lg font-semibold text-slate-950">Jump to section</CardTitle>
+                <p className="mt-2 text-sm text-slate-500">
+                  Select a card in the dashboard to open a specific section directly.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-3 px-6 py-6">
+                {sections.map((section) => (
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => {
+                      const element = document.getElementById(section.id);
+                      element?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                    className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4 text-left text-sm text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
+                  >
+                    <span className="block font-semibold text-slate-900">{section.title}</span>
+                    <span className="text-slate-500">{section.subtitle}</span>
+                  </button>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className="overflow-hidden rounded-[2rem] border border-slate-200 bg-slate-950 text-white shadow-xl">
+              <CardContent className="px-6 py-6">
+                <h2 className="text-lg font-semibold">Important note</h2>
+                <p className="mt-4 text-sm leading-6 text-slate-300">
+                  QuickMed results are intended as guidance only. Always consult a licensed healthcare professional before acting on medical advice.
+                </p>
+              </CardContent>
+            </Card>
+          </aside>
+        </div>
       </div>
     </div>
   );
