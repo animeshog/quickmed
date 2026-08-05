@@ -504,14 +504,15 @@ const Dashboard = () => {
           fileAnalysis: fullText,
         });
 
-        // Merge parsed report fields into results only if symptom-based values are missing.
+        // Merge parsed report fields into results.
+        // Use report values for report upload flow, preserve symptom values if they exist.
         setResults((prev) => {
           const existing = prev || ({ cause: "", treatment: "", medication: "", homeRemedies: "", fileAnalysis: "" } as AnalysisResults);
           return {
-            cause: existing.cause || parsed.cause,
-            treatment: existing.treatment || parsed.treatment,
-            medication: existing.medication || parsed.medication,
-            homeRemedies: existing.homeRemedies || parsed.homeRemedies,
+            cause: parsed.cause || existing.cause,
+            treatment: parsed.treatment || existing.treatment,
+            medication: parsed.medication || existing.medication,
+            homeRemedies: parsed.homeRemedies || existing.homeRemedies,
             fileAnalysis: fullText,
           } as AnalysisResults;
         });
@@ -752,24 +753,43 @@ const Dashboard = () => {
   };
 
   const parseReportAnalysis = (text: string) => {
-    // More robust parser:
+    // Enhanced parser to support multiple heading variations:
     // - Accept headings with or without trailing colon
     // - Accept headings with inline content (e.g. "CAUSE: Viral infection")
     // - Case-insensitive matching
+    // - Supports: CAUSE, Possible Cause, TREATMENT, Treatment Plan, MEDICATION, Medication Guidance, HOME REMEDIES, HOME CARE, etc.
     const normalized = text.replace(/\r/g, "").trim();
     const lines = normalized.split(/\r?\n/);
-    const headings = [
-      "CAUSE",
-      "TREATMENT",
-      "MEDICATION",
-      "HOME REMEDIES",
-      "HOME-REMEDY",
-      "HOME-REMEDIES",
-      "SUMMARY",
-    ];
 
     const sections: { [key: string]: string } = {};
     let current: string | null = null;
+
+    // Define heading patterns and their normalized keys.
+    // Supports plain headings, markdown (#/##/###), and bold (**Heading**).
+    const mdPrefix = String.raw`(?:#{1,6}\s*)?(?:\*{1,2})?`;
+    const mdSuffix = String.raw`(?:\*{1,2})?`;
+    const headingPatterns: { [key: string]: RegExp } = {
+      CAUSE: new RegExp(
+        `^\\s*${mdPrefix}(POSSIBLE CAUSE|CAUSE|POSSIBLECAUSE)${mdSuffix}\\s*[:\\-]?\\s*(.*)$`,
+        "i"
+      ),
+      TREATMENT: new RegExp(
+        `^\\s*${mdPrefix}(TREATMENT PLAN|TREATMENT|TREATMENTPLAN)${mdSuffix}\\s*[:\\-]?\\s*(.*)$`,
+        "i"
+      ),
+      MEDICATION: new RegExp(
+        `^\\s*${mdPrefix}(MEDICATION GUIDANCE|MEDICATION|MEDICATIONGUIDANCE)${mdSuffix}\\s*[:\\-]?\\s*(.*)$`,
+        "i"
+      ),
+      HOME_REMEDIES: new RegExp(
+        `^\\s*${mdPrefix}(HOME CARE|HOME REMEDIES|HOME REMEDY|HOME-REMEDY|HOME-REMEDIES|HOMECARE)${mdSuffix}\\s*[:\\-]?\\s*(.*)$`,
+        "i"
+      ),
+      SUMMARY: new RegExp(
+        `^\\s*${mdPrefix}(SUMMARY)${mdSuffix}\\s*[:\\-]?\\s*(.*)$`,
+        "i"
+      ),
+    };
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -779,11 +799,22 @@ const Dashboard = () => {
         continue;
       }
 
-      // Match heading at line start, optionally with colon and inline content
-      const m = line.match(/^\s*(CAUSE|TREATMENT|MEDICATION|HOME REMEDIES|HOME-REMEDY|HOME-REMEDIES|SUMMARY)\s*[:\-]?\s*(.*)$/i);
-      if (m) {
-        current = m[1].toUpperCase().trim();
-        sections[current] = (m[2] || "").trim();
+      // Check if line matches any heading pattern
+      let matchedKey: string | null = null;
+      let inlineContent = "";
+      for (const [key, pattern] of Object.entries(headingPatterns)) {
+        const match = line.match(pattern);
+        if (match) {
+          matchedKey = key;
+          // Extract inline content after heading (e.g., "CAUSE: Viral infection" -> "Viral infection")
+          inlineContent = match[2] ? match[2].trim() : "";
+          break;
+        }
+      }
+
+      if (matchedKey) {
+        current = matchedKey;
+        sections[current] = inlineContent;
         continue;
       }
 
@@ -794,8 +825,7 @@ const Dashboard = () => {
 
     const pick = (keys: string[]) => {
       for (const k of keys) {
-        const up = k.toUpperCase();
-        if (sections[up] && sections[up].trim()) return sections[up].trim();
+        if (sections[k] && sections[k].trim()) return sections[k].trim();
       }
       return "";
     };
@@ -804,7 +834,7 @@ const Dashboard = () => {
       cause: pick(["CAUSE"]),
       treatment: pick(["TREATMENT"]),
       medication: pick(["MEDICATION"]),
-      homeRemedies: pick(["HOME REMEDIES", "HOME-REMEDY", "HOME-REMEDIES"]),
+      homeRemedies: pick(["HOME_REMEDIES"]),
       summary: pick(["SUMMARY"]),
     };
   };

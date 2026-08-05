@@ -7,7 +7,7 @@ const API_KEY = process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY;
 const BASE_URL = "https://api.groq.com/openai";
 const MODEL = "llama-3.3-70b-versatile";
 
-export default async function askGroq(
+export default async function askGemini(
   query: string,
   params: string
 ): Promise<string> {
@@ -77,4 +77,3 @@ export default async function askGroq(
     throw error;
   }
 }
-

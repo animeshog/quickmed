@@ -298,25 +298,25 @@ router.post(
         return;
       }
 
-      const prompt = `Analyze this medical report and provide a clear, structured output with the following labeled sections exactly as shown (use the exact headings):
+      const prompt = `Analyze this medical report and provide a clear, structured output with the following labeled sections. Use these exact headings on their own lines (plain text, no markdown # symbols):
 
-      CAUSE:
-      - Provide the most likely cause(s) in 1-2 concise lines.
+Possible Cause:
+- Provide the most likely cause(s) in 1-2 concise lines.
 
-      TREATMENT:
-      - List 3 brief treatment steps or recommendations (one per line).
+Treatment Plan:
+- List 3 brief treatment steps or recommendations (one per line).
 
-      MEDICATION:
-      - List 2-3 recommended medications in the format: Name | Dose | Frequency | Duration (no additional notes).
+Medication Guidance:
+- List 2-3 recommended medications in the format: Name | Dose | Frequency | Duration (no additional notes).
 
-      HOME REMEDIES:
-      - Provide 2 simple home remedies or supportive care tips (one per line).
+Home Care:
+- Provide 2 simple home remedies or supportive care tips (one per line).
 
-      SUMMARY:
-      - A 2-3 line plain-language summary of the report's most important points.
+SUMMARY:
+- A 2-3 line plain-language summary of the report's most important points.
 
-      Medical Report Content:
-      ${fileContent}`;
+Medical Report Content:
+${fileContent}`;
 
       const geminiResponse = await askGemini(prompt, fileContent);
 
