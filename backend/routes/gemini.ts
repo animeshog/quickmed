@@ -123,18 +123,22 @@ router.post(
 ${followUpSection}provide only essential medication details in this EXACT format:
 
 Medication 1:
-- Name: [medicine name]
+- Name: [medicine name/salt]
+- Brand Name: [brand name, e.g., Cipla D3 60K for Vitamin D3]
+- Company: [pharmaceutical company, e.g., Cipla]
 - Power: [strength in mg/ml]
 - Dose: [how many times per day]
 - Duration: [for how many days]
 
 Medication 2:
-- Name: [medicine name]
+- Name: [medicine name/salt]
+- Brand Name: [brand name]
+- Company: [pharmaceutical company]
 - Power: [strength in mg/ml]
 - Dose: [how many times per day]
 - Duration: [for how many days]
 
-Note: List only 2-3 common over-the-counter medications. No descriptions, side effects, or additional information.`;
+Note: List only 2-3 common over-the-counter medications with their popular brand names and companies. No descriptions, side effects, or additional information.`;
 
       const geminiResponse = await askGemini(
         prompt,
