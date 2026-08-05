@@ -5,6 +5,7 @@ import { ArrowLeft, Download } from "lucide-react";
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
+import html2pdf from "html2pdf.js";
 
 interface AnalysisResults {
   cause: string;
@@ -32,12 +33,111 @@ const Results = () => {
     }
   }, [results, selectedTab]);
 
-  const handleDownload = () => {
-    toast({
-      title: "Coming Soon!",
-      description: "The download feature will be available soon.",
-      variant: "default",
-    });
+  const handleDownload = async () => {
+    if (!results || Object.keys(results).length === 0) {
+      toast({
+        title: "Error",
+        description: "No analysis results available to generate a prescription.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const currentDate = new Date().toLocaleDateString();
+    const medHtml = String(results.medication || "")
+      .replace(/<br\s*\/?>(?:\s*)/gi, "\n")
+      .replace(/\n+/g, "\n")
+      .trim()
+      .replace(/\n/g, "<br />");
+    const causeHtml = String(results.cause || "")
+      .replace(/\n+/g, "\n")
+      .trim()
+      .replace(/\n/g, "<br />");
+    const treatmentHtml = String(results.treatment || "")
+      .replace(/\n+/g, "\n")
+      .trim()
+      .replace(/\n/g, "<br />");
+    const remediesHtml = String(results.homeRemedies || "")
+      .replace(/\n+/g, "\n")
+      .trim()
+      .replace(/\n/g, "<br />");
+
+    const hasAnyContent = [medHtml, causeHtml, treatmentHtml, remediesHtml].some(
+      (value) => value && value.trim().length > 0
+    );
+
+    if (!hasAnyContent) {
+      toast({
+        title: "No prescription data",
+        description: "AI did not provide enough prescription content to download.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const prescription = document.createElement("div");
+    prescription.innerHTML = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; color: #0f172a;">
+        <div style="max-width: 820px; margin: 0 auto; padding: 28px; background: #ffffff;">
+          <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e6eef8;padding-bottom:16px;">
+            <div>
+              <h1 style="margin:0;font-size:22px;color:#0ea5e9;letter-spacing:0.2px;">QuickMed</h1>
+              <div style="font-size:12px;color:#64748b;margin-top:4px;">AI-Powered Health Assistant</div>
+            </div>
+            <div style="text-align:right;font-size:12px;color:#475569;">Date: ${currentDate}</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px;padding:12px 0;border-bottom:1px dashed #e6eef8;">
+            <div>
+              <h2 style="margin:0 0 8px 0;color:#0f172a;font-size:16px;">Prescribed Medications</h2>
+              <div style="font-size:13px;color:#374151;line-height:1.45;">
+                ${medHtml || '<span style="color:#9ca3af;">No medications suggested.</span>'}
+              </div>
+
+              <h3 style="margin:18px 0 8px 0;color:#0f172a;font-size:15px;">Treatment</h3>
+              <div style="font-size:13px;color:#374151;line-height:1.45;">${treatmentHtml || '<span style="color:#9ca3af;">No treatment suggestions.</span>'}</div>
+
+              <h3 style="margin:18px 0 8px 0;color:#0f172a;font-size:15px;">Home Remedies</h3>
+              <div style="font-size:13px;color:#374151;line-height:1.45;">${remediesHtml || '<span style="color:#9ca3af;">No home remedies suggested.</span>'}</div>
+            </div>
+
+            <div style="width:260px;">
+              <div style="background:#f8fafc;border-radius:12px;padding:12px;border:1px solid #eef2f7;">
+                <div style="font-size:13px;color:#6b7280;font-weight:600;">Possible Cause</div>
+                <div style="margin-top:8px;font-size:13px;color:#374151;line-height:1.4;">${causeHtml || '<span style="color:#9ca3af;">No cause determined.</span>'}</div>
+              </div>
+
+              <div style="margin-top:14px;background:linear-gradient(180deg,#eef8ff,#ffffff);border-radius:12px;padding:12px;border:1px solid #e6f0fb;">
+                <div style="font-size:12px;color:#0ea5e9;font-weight:700;">Disclaimer</div>
+                <div style="margin-top:8px;font-size:11px;color:#64748b;">This is an AI-generated prescription intended for reference only. Consult a qualified healthcare professional before starting any medication.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const opt = {
+      margin: 8,
+      filename: `quickmed-prescription-${currentDate}.pdf`,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+    };
+
+    try {
+      await html2pdf().set(opt).from(prescription).save();
+      toast({
+        title: "Success",
+        description: "Prescription downloaded successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to download prescription",
+        variant: "destructive",
+      });
+    }
   };
 
   const sections = [

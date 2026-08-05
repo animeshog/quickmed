@@ -1,65 +1,104 @@
-# 🩺 QuickMed — Your Friendly Neighbourhood Medical App  
+# 🩺 QuickMed
+
+QuickMed is a modern AI-powered healthcare assistant that combines a React + TypeScript frontend with an Express + TypeScript backend.
+
+The app supports:
+- Symptom analysis and likely causes
+- Treatment and medication recommendations
+- Prescription / lab report upload processing
+- Saved user history and secure auth
 
 ---
 
-## 📂 Folder Structure
-### project_quickmed/
-#### ├── backend/ 
-#### └── frontend/ 
+## 📁 Project Structure
+
+- `backend/` — Express API, TypeScript server, MongoDB integration, Gemini/Groq AI routes
+- `frontend/` — Vite + React + TypeScript frontend with Tailwind, shadcn/ui, and React Router
 
 ---
 
-## 🛠️ Setup Guide
+## 🚀 Local Setup
 
-### ⚙️ Backend Setup
+### 1. Backend
 
-1. Clone the repo:
-    ```bash
-    git clone https://github.com/animeshog/quickmed.git
-    cd backend
-    ```
+```bash
+cd backend
+npm install
+```
 
-2. Create a `.env` file inside the `backend/` directory:
-    ```env
-    DB_URL=your_mongodb_url_here
-    JWT_SECRET=your_secret_key_here
-    ```
+Create a `backend/.env` file with these values:
 
-3. Install dependencies:
-    ```bash
-    npm i
-    ```
+```env
+DB_URL=your_mongodb_connection_string
+JWT_SECRET=your_jwt_secret
+GROQ_API_KEY=your_groq_api_key
+# or use GEMINI_API_KEY as an alias
+GEMINI_API_KEY=your_groq_api_key
+PORT=5000
+```
 
-4. Run the backend:
-    ```bash
-    npx nodemon
-    ```
+Then start the backend in development mode:
 
----
+```bash
+npm run dev
+```
 
-### 🎨 Frontend Setup
+The backend should start on `http://localhost:5000` by default.
 
-1. Get into the frontend:
-    ```bash
-    cd ../frontend
-    ```
+### 2. Frontend
 
-2. Install dependencies:
-    ```bash
-    npm i
-    ```
+```bash
+cd ../frontend
+npm install
+npm run dev
+```
 
-3. Start the development server:
-    ```bash
-    npm run dev
-    ```
+The frontend is served by Vite, typically on `http://localhost:5173`.
 
 ---
 
-## ✅ You're all set!
+## 🧩 API Endpoints
 
-You should now have:
-- 🚀 Backend up and running -> http://localhost:5000/
-- 💻 Frontend live on [http://localhost:5173](http://localhost:5173) or whatever port it comes up in console.
+The backend exposes the following `gemini` routes:
+
+- `POST /api/gemini/cause` — analyze likely cause from symptoms
+- `POST /api/gemini/treatment` — return treatment steps
+- `POST /api/gemini/medication` — return medication suggestions
+- `POST /api/gemini/home-remedies` — return home remedy tips
+- `POST /api/gemini/save-history` — save symptom/results history
+
+Authentication routes live under `/api/auth`.
 
 ---
+
+## 🔧 Notes
+
+- The backend currently uses `GROQ_API_KEY` or `GEMINI_API_KEY` to authenticate with the Groq API.
+- If you get network errors like `getaddrinfo ENOTFOUND api.groq.com`, verify your internet connection and DNS settings.
+- Make sure your `.env` file is loaded before starting the backend.
+
+---
+
+## 💡 Frontend Tech
+
+- React 18
+- Vite
+- Tailwind CSS
+- `react-router-dom` for routing
+- `framer-motion` for motion effects
+- `react-markdown` for rich result rendering
+
+---
+
+## 🧪 Recommended Workflow
+
+1. Start MongoDB and make sure `DB_URL` is valid.
+2. Run the backend: `cd backend && npm run dev`
+3. Run the frontend: `cd frontend && npm run dev`
+4. Open the app in your browser and use the dashboard interface.
+
+---
+
+## 📌 Disclaimer
+
+QuickMed provides general health information and is not a replacement for professional medical advice.
