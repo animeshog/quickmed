@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import axios from "@/lib/axios";
 import { Button } from "@/components/ui/button";
 import { Activity, Home, LogOut, User, Mail, Calendar, Ruler, Weight, Droplet, History as HistoryIcon } from "lucide-react";
 import { motion } from "motion/react";
@@ -35,11 +35,7 @@ export default function Profile() {
       }
 
       try {
-        const response = await axios.get<UserData>("/api/auth/info", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await axios.get<UserData>("/auth/info");
         console.log("Profile data:", response.data); // Debug log
         setUserData(response.data);
         setError("");

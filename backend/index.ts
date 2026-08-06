@@ -2,24 +2,35 @@ import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { GeminiRouter } from "./routes/gemini";
 const app = express();
-const PORT = process.env.PORT || 5000; // Changed from 5000 to 5001
+const PORT = process.env.PORT || 5001;
 import { connectDatabse } from "./config/connection";
 import userRouter from "./routes/userRoutes";
 
 connectDatabse();
 
 const allowedOrigins = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
   "http://localhost:5173",
+  "http://127.0.0.1:5173",
   "http://localhost:8080",
-  "https://quickmed-animeshog.vercel.app", // Add your Vercel domain
+  "http://127.0.0.1:8080",
+  "https://quickmed-animeshog.vercel.app",
 ];
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Log the origin for debugging
+      console.log('CORS request from origin:', origin);
+      
+      // Allow all origins in development, or specific origins in production
+      if (process.env.NODE_ENV === 'development') {
+        callback(null, true);
+      } else if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
+        console.log('CORS blocked for origin:', origin);
         callback(new Error("Not allowed by CORS"));
       }
     },

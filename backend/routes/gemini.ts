@@ -3,6 +3,7 @@ import askGemini from "../controllers/geminiControllers";
 import multer from "multer";
 import { processFile } from "../services/pdfService";
 import History from "../models/historySchema";
+import { truncateReportForAnalysis } from "../utils/reportContent";
 
 // Update multer configuration
 const storage = multer.memoryStorage();
@@ -43,15 +44,37 @@ router.post("/cause", async (req: Request, res: Response): Promise<void> => {
   try {
     const symptoms = req.body.symptoms || [];
     const followUpAnswers = req.body.followUpAnswers || [];
+    const conversationHistory = req.body.conversationHistory || [];
 
     if (!symptoms.length) {
       res.status(400).json({ message: "Symptoms are required" });
       return;
     }
 
+    // Build conversation history for AI context
+    const aiConversationHistory: Array<{role: 'system' | 'user' | 'assistant', content: string}> = [];
+    
+    // Add system prompt with context
+    aiConversationHistory.push({
+      role: 'system',
+      content: `You are a medical assistant analyzing symptoms. Patient's initial symptoms: ${symptoms.join(", ")}`
+    });
+
+    // Add conversation history if provided
+    if (conversationHistory && Array.isArray(conversationHistory)) {
+      conversationHistory.forEach((item: any) => {
+        if (item.role && item.content) {
+          const role = item.role === 'user' ? 'user' : 'assistant';
+          aiConversationHistory.push({
+            role: role,
+            content: item.content
+          });
+        }
+      });
+    }
+
     const followUpSection = formatFollowUpAnswers(followUpAnswers);
-    const prompt = `Based on these symptoms: ${symptoms.join(", ")}
-${followUpSection}provide:
+    const prompt = `Based on the symptoms and conversation history above${followUpAnswers.length ? `\n\nAdditional follow-up answers:\n${followUpSection}` : ''}, provide:
 
 CAUSE:
 [Most likely cause]
@@ -61,7 +84,8 @@ EXPLANATION:
 
     const geminiResponse = await askGemini(
       prompt,
-      `${symptoms.join(", ")}${followUpAnswers.length ? `\n\n${followUpSection}` : ""}`
+      followUpSection,
+      aiConversationHistory
     );
 
     res.status(200).json({
@@ -81,20 +105,42 @@ router.post(
     try {
       const symptoms = req.body.symptoms || [];
       const followUpAnswers = req.body.followUpAnswers || [];
+      const conversationHistory = req.body.conversationHistory || [];
+
+      // Build conversation history for AI context
+      const aiConversationHistory: Array<{role: 'system' | 'user' | 'assistant', content: string}> = [];
+      
+      // Add system prompt with context
+      aiConversationHistory.push({
+        role: 'system',
+        content: `You are a medical assistant analyzing symptoms. Patient's initial symptoms: ${symptoms.join(", ")}`
+      });
+
+      // Add conversation history if provided
+      if (conversationHistory && Array.isArray(conversationHistory)) {
+        conversationHistory.forEach((item: any) => {
+          if (item.role && item.content) {
+            const role = item.role === 'user' ? 'user' : 'assistant';
+            aiConversationHistory.push({
+              role: role,
+              content: item.content
+            });
+          }
+        });
+      }
+
       const followUpSection = formatFollowUpAnswers(followUpAnswers);
 
-      const prompt = `List 3 key treatment steps for these symptoms in bullet points. Keep each point to one line:
+      const prompt = `Based on the symptoms and conversation history above${followUpAnswers.length ? `\n\nAdditional follow-up answers:\n${followUpSection}` : ''}, list 3 key treatment steps in bullet points. Keep each point to one line:
 
 • [Step 1]
 • [Step 2]
-• [Step 3]
-
-Symptoms: ${symptoms.join(", ")}
-${followUpSection}`;
+• [Step 3]`;
 
       const geminiResponse = await askGemini(
         prompt,
-        `${symptoms.join(", ")}${followUpAnswers.length ? `\n\n${followUpSection}` : ""}`
+        followUpSection,
+        aiConversationHistory
       );
 
       res.status(200).json({
@@ -117,10 +163,33 @@ router.post(
     try {
       const symptoms = req.body.symptoms || [];
       const followUpAnswers = req.body.followUpAnswers || [];
+      const conversationHistory = req.body.conversationHistory || [];
+
+      // Build conversation history for AI context
+      const aiConversationHistory: Array<{role: 'system' | 'user' | 'assistant', content: string}> = [];
+      
+      // Add system prompt with context
+      aiConversationHistory.push({
+        role: 'system',
+        content: `You are a medical assistant analyzing symptoms. Patient's initial symptoms: ${symptoms.join(", ")}`
+      });
+
+      // Add conversation history if provided
+      if (conversationHistory && Array.isArray(conversationHistory)) {
+        conversationHistory.forEach((item: any) => {
+          if (item.role && item.content) {
+            const role = item.role === 'user' ? 'user' : 'assistant';
+            aiConversationHistory.push({
+              role: role,
+              content: item.content
+            });
+          }
+        });
+      }
+
       const followUpSection = formatFollowUpAnswers(followUpAnswers);
 
-      const prompt = `Based on these symptoms: ${symptoms.join(", ")}
-${followUpSection}provide only essential medication details in this EXACT format:
+      const prompt = `Based on the symptoms and conversation history above${followUpAnswers.length ? `\n\nAdditional follow-up answers:\n${followUpSection}` : ''}, provide only essential medication details in this EXACT format:
 
 Medication 1:
 - Name: [medicine name/salt]
@@ -142,7 +211,8 @@ Note: List only 2-3 common over-the-counter medications with their popular brand
 
       const geminiResponse = await askGemini(
         prompt,
-        `${symptoms.join(", ")}${followUpAnswers.length ? `\n\n${followUpSection}` : ""}`
+        followUpSection,
+        aiConversationHistory
       );
 
       // Clean and format the response to plain text
@@ -150,6 +220,9 @@ Note: List only 2-3 common over-the-counter medications with their popular brand
         .replace(/<br\s*\/?>/gi, "\n")
         .replace(/Medication \d+:/g, "\n$&")
         .trim();
+
+      console.log('BACKEND API: Raw medication response:', geminiResponse);
+      console.log('BACKEND API: Formatted medication response:', formattedResponse);
 
       res.status(200).json({
         responseText: formattedResponse,
@@ -171,19 +244,41 @@ router.post(
     try {
       const symptoms = req.body.symptoms || [];
       const followUpAnswers = req.body.followUpAnswers || [];
+      const conversationHistory = req.body.conversationHistory || [];
+
+      // Build conversation history for AI context
+      const aiConversationHistory: Array<{role: 'system' | 'user' | 'assistant', content: string}> = [];
+      
+      // Add system prompt with context
+      aiConversationHistory.push({
+        role: 'system',
+        content: `You are a medical assistant analyzing symptoms. Patient's initial symptoms: ${symptoms.join(", ")}`
+      });
+
+      // Add conversation history if provided
+      if (conversationHistory && Array.isArray(conversationHistory)) {
+        conversationHistory.forEach((item: any) => {
+          if (item.role && item.content) {
+            const role = item.role === 'user' ? 'user' : 'assistant';
+            aiConversationHistory.push({
+              role: role,
+              content: item.content
+            });
+          }
+        });
+      }
+
       const followUpSection = formatFollowUpAnswers(followUpAnswers);
 
-      const prompt = `Give 2 simple home remedies for these symptoms. Format as:
+      const prompt = `Based on the symptoms and conversation history above${followUpAnswers.length ? `\n\nAdditional follow-up answers:\n${followUpSection}` : ''}, give 2 simple home remedies. Format as:
 
 1. [Remedy] | [Brief instructions]
-2. [Remedy] | [Brief instructions]
-
-Symptoms: ${symptoms.join(", ")}
-${followUpSection}`;
+2. [Remedy] | [Brief instructions]`;
 
       const geminiResponse = await askGemini(
         prompt,
-        `${symptoms.join(", ")}${followUpAnswers.length ? `\n\n${followUpSection}` : ""}`
+        followUpSection,
+        aiConversationHistory
       );
 
       res.status(200).json({
@@ -194,6 +289,116 @@ ${followUpSection}`;
       console.error(error);
       res.status(500).json({
         message: "Failed to analyze home remedies",
+      });
+    }
+  }
+);
+
+// Endpoint for dynamic follow-up question generation
+router.post(
+  "/follow-up-question",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { symptoms, conversationHistory, currentAnswer, questionCount } = req.body;
+      
+      if (!symptoms || !Array.isArray(symptoms)) {
+        res.status(400).json({ 
+          success: false,
+          message: "Symptoms are required" 
+        });
+        return;
+      }
+
+      // Build conversation history for AI context
+      const aiConversationHistory: Array<{role: 'system' | 'user' | 'assistant', content: string}> = [];
+      
+      // Add system prompt with context
+      aiConversationHistory.push({
+        role: 'system',
+        content: `You are a medical assistant conducting a symptom assessment. Your goal is to gather the minimum necessary information to understand the patient's condition.
+
+Patient's initial symptoms: ${symptoms.join(", ")}
+
+CRITICAL INSTRUCTIONS:
+1. Review the ENTIRE conversation history before generating a question
+2. NEVER ask about information already provided by the patient
+3. NEVER repeat similar questions or ask the same thing in different words
+4. Each question MUST collect NEW medically relevant information not already discussed
+5. Ask ONLY if absolutely necessary for a reasonable assessment
+6. If sufficient information has been gathered (typically 2-5 questions for simple cases, up to 10 for complex cases), return exactly "ANALYSIS_COMPLETE"
+7. Generate specific, relevant questions about: symptom duration, severity, timing, aggravating/alleviating factors, associated symptoms, or relevant medical history
+8. Return ONLY the question text or "ANALYSIS_COMPLETE" - no prefixes, labels, or additional text`
+      });
+
+      // Add conversation history if provided
+      if (conversationHistory && Array.isArray(conversationHistory)) {
+        conversationHistory.forEach((item: any) => {
+          if (item.role && item.content) {
+            // Convert frontend format to AI format
+            const role = item.role === 'user' ? 'user' : 'assistant';
+            aiConversationHistory.push({
+              role: role,
+              content: item.content
+            });
+          }
+        });
+      }
+
+      // Add current answer as a user message if provided
+      if (currentAnswer) {
+        aiConversationHistory.push({
+          role: 'user',
+          content: currentAnswer
+        });
+      }
+
+      const currentQuestionNumber = (questionCount || 0) + 1;
+      const maxQuestions = 10;
+
+      // Add instruction for the current turn
+      const prompt = `Current question number: ${currentQuestionNumber} of maximum ${maxQuestions}
+
+Think step by step:
+- What information do I already have from the conversation history?
+- What critical information is still missing for a proper assessment?
+- Is this missing information essential, or can I proceed with what I have?
+- Generate ONE specific question to fill the most critical gap, OR return "ANALYSIS_COMPLETE" if enough information exists.`;
+
+      const geminiResponse = await askGemini(prompt, '', aiConversationHistory);
+
+      // Check if AI wants to stop questioning
+      const cleanedResponse = geminiResponse.trim();
+      
+      // Hard limit: stop after max questions regardless of AI response
+      if (currentQuestionNumber >= maxQuestions || cleanedResponse === "ANALYSIS_COMPLETE" || cleanedResponse === "STOP") {
+        res.status(200).json({
+          success: true,
+          shouldStop: true,
+          question: "",
+          message: currentQuestionNumber >= maxQuestions 
+            ? "Maximum questions reached" 
+            : "Assessment complete - sufficient information gathered",
+        });
+        return;
+      }
+
+      // Clean up the question response
+      const cleanedQuestion = cleanedResponse
+        .replace(/^(Question:|Q:|Follow-up:)/i, '')
+        .trim()
+        .replace(/[?!.]+$/, '') + '?';
+
+      res.status(200).json({
+        success: true,
+        shouldStop: false,
+        question: cleanedQuestion,
+        message: "Follow-up question generated successfully",
+      });
+    } catch (error) {
+      console.error("Follow-up question generation error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to generate follow-up question",
       });
     }
   }
@@ -296,7 +501,7 @@ router.post(
   "/analyze-upload",
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const fileContent = req.body.fileContent || "";
+      const fileContent = truncateReportForAnalysis(req.body.fileContent || "");
       if (!fileContent) {
         res.status(400).json({ success: false, message: "fileContent is required" });
         return;
@@ -310,9 +515,6 @@ Possible Cause:
 Treatment Plan:
 - List 3 brief treatment steps or recommendations (one per line).
 
-Medication Guidance:
-- List 2-3 recommended medications in the format: Name | Dose | Frequency | Duration (no additional notes).
-
 Home Care:
 - Provide 2 simple home remedies or supportive care tips (one per line).
 
@@ -322,7 +524,9 @@ SUMMARY:
 Medical Report Content:
 ${fileContent}`;
 
-      const geminiResponse = await askGemini(prompt, fileContent);
+      const geminiResponse = await askGemini(prompt, "");
+
+      console.log('BACKEND API: Raw file analysis response:', geminiResponse);
 
       res.status(200).json({
         success: true,
@@ -360,6 +564,68 @@ Do not add words like "doctor" or "specialist" to the name.`;
       console.error("Doctor recommendation error:", error);
       res.status(500).json({
         message: "Failed to get doctor recommendation",
+      });
+    }
+  }
+);
+
+// Add new endpoint for medicine guidance from uploaded reports
+router.post(
+  "/medicine-guidance",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const fileContent = truncateReportForAnalysis(req.body.fileContent || "");
+      if (!fileContent) {
+        res.status(400).json({ success: false, message: "fileContent is required" });
+        return;
+      }
+
+      const prompt = `Analyze this medical report and provide medication guidance in this EXACT format:
+
+Medication 1:
+- Name: [medicine name/salt]
+- Brand Name: [brand name, e.g., Cipla D3 60K for Vitamin D3]
+- Company: [pharmaceutical company, e.g., Cipla]
+- Power: [strength in mg/ml]
+- Dose: [how many times per day]
+- Duration: [for how many days]
+
+Medication 2:
+- Name: [medicine name/salt]
+- Brand Name: [brand name]
+- Company: [pharmaceutical company]
+- Power: [strength in mg/ml]
+- Dose: [how many times per day]
+- Duration: [for how many days]
+
+Note: List only 2-3 common medications with their popular brand names and companies. No descriptions, side effects, or additional information.
+
+Medical Report Content:
+${fileContent}`;
+
+      const geminiResponse = await askGemini(prompt, "");
+
+      // Clean and format the response to plain text
+      const formattedResponse = geminiResponse
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/Medication \d+:/g, "\n$&")
+        .trim();
+
+      console.log('BACKEND API: Raw medicine guidance response:', geminiResponse);
+      console.log('BACKEND API: Formatted medicine guidance response:', formattedResponse);
+
+      res.status(200).json({
+        success: true,
+        responseText: formattedResponse,
+      });
+    } catch (error) {
+      console.error("Medicine guidance error:", error);
+      const detail =
+        error instanceof Error ? error.message : "Failed to get medicine guidance";
+      res.status(500).json({
+        success: false,
+        message: "Failed to get medicine guidance",
+        error: process.env.NODE_ENV === "development" ? detail : undefined,
       });
     }
   }

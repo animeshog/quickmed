@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import Logo from "@/components/Logo";
 
 const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const genders = ["Male", "Female", "Other"];
@@ -115,109 +116,121 @@ const Signup = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white relative overflow-hidden flex items-center justify-center p-4">
+    <div className="relative min-h-screen overflow-hidden bg-[#FAFBFF] text-[#111827]">
       <AnimatedBackground intensity="low" />
 
+      <div className="pointer-events-none absolute left-[-10%] top-0 h-96 w-96 rounded-full bg-[#2563EB]/15 blur-3xl" />
+      <div className="pointer-events-none absolute right-[-8%] top-24 h-80 w-80 rounded-full bg-[#4F46E5]/20 blur-3xl" />
+      <div className="pointer-events-none absolute left-1/2 top-1/3 h-72 w-72 -translate-x-1/2 rounded-full bg-[#2563EB]/10 blur-3xl" />
+
+      <header className="relative z-20 border-b border-slate-200/70 bg-[#FAFBFF]/90 backdrop-blur-xl">
+        <div className="container mx-auto flex items-center justify-between px-6 py-5">
+          <Logo className="text-slate-900" />
+          <Button variant="ghost" className="text-slate-700 hover:text-[#2563EB]" onClick={() => navigate("/")}>
+            Back to Home
+          </Button>
+        </div>
+      </header>
+
       <motion.div
-        className="w-full max-w-md relative z-10"
+        className="relative z-20 flex min-h-[calc(100vh-80px)] items-center justify-center px-6 py-8"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <Card className="border-none shadow-lg">
-          <CardHeader className="space-y-1">
+        <Card className="w-full max-w-2xl border-slate-200/70 bg-white/95 shadow-[0_40px_120px_rgba(15,23,42,0.12)]">
+          <CardHeader className="space-y-1 pb-6">
             <div className="text-center">
-              <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-purple-500 to-indigo-700 mb-1">
-                QuickMed
-              </h1>
+              <Logo className="justify-center text-slate-900 mb-4" />
+              <CardTitle className="text-2xl font-bold text-center text-slate-950">
+                Create an Account
+              </CardTitle>
+              <CardDescription className="text-center text-[#6B7280]">
+                Enter your information to get started
+              </CardDescription>
             </div>
-            <CardTitle className="text-2xl font-bold text-center">
-              Create an Account
-            </CardTitle>
-            <CardDescription className="text-center">
-              Enter your information to get started
-            </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pb-6">
             <form onSubmit={handleSignup} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="name" className="text-slate-700">Full Name</Label>
                 <div className="relative">
-                  <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <User className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                   <Input
                     id="name"
                     placeholder="John Doe"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 border-slate-200 focus:border-[#2563EB] focus:ring-[#2563EB]/20"
                     required
                   />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-slate-700">Email</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                   <Input
                     id="email"
                     type="email"
                     placeholder="you@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 border-slate-200 focus:border-[#2563EB] focus:ring-[#2563EB]/20"
                     required
                   />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-slate-700">Password</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                   <Input
                     id="password"
                     type="password"
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 border-slate-200 focus:border-[#2563EB] focus:ring-[#2563EB]/20"
                     required
                   />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Label htmlFor="confirmPassword" className="text-slate-700">Confirm Password</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                   <Input
                     id="confirmPassword"
                     type="password"
                     placeholder="••••••••"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 border-slate-200 focus:border-[#2563EB] focus:ring-[#2563EB]/20"
                     required
                   />
                 </div>
               </div>
-              <div className="border-t pt-4 space-y-4">
-                <h3 className="font-medium text-gray-800">
+              <div className="border-t border-slate-200/70 pt-4 space-y-4">
+                <h3 className="font-medium text-slate-700">
                   Medical Information
                 </h3>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="dob">Date of Birth</Label>
+                    <Label htmlFor="dob" className="text-slate-700">Date of Birth</Label>
                     <Input
                       id="dob"
                       type="date"
                       value={dob}
                       onChange={(e) => setDob(e.target.value)}
+                      className="border-slate-200 focus:border-[#2563EB] focus:ring-[#2563EB]/20"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="gender">Gender</Label>
+                    <Label htmlFor="gender" className="text-slate-700">Gender</Label>
                     <Select onValueChange={setGender}>
-                      <SelectTrigger>
+                      <SelectTrigger className="border-slate-200 focus:border-[#2563EB] focus:ring-[#2563EB]/20">
                         <SelectValue placeholder="Select gender" />
                       </SelectTrigger>
                       <SelectContent>
@@ -236,29 +249,31 @@ const Signup = () => {
 
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="height">Height (cm)</Label>
+                    <Label htmlFor="height" className="text-slate-700">Height (cm)</Label>
                     <Input
                       id="height"
                       type="number"
                       placeholder="175"
                       value={height}
                       onChange={(e) => setHeight(e.target.value)}
+                      className="border-slate-200 focus:border-[#2563EB] focus:ring-[#2563EB]/20"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="weight">Weight (kg)</Label>
+                    <Label htmlFor="weight" className="text-slate-700">Weight (kg)</Label>
                     <Input
                       id="weight"
                       type="number"
                       placeholder="70"
                       value={weight}
                       onChange={(e) => setWeight(e.target.value)}
+                      className="border-slate-200 focus:border-[#2563EB] focus:ring-[#2563EB]/20"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="bloodGroup">Blood Group</Label>
+                    <Label htmlFor="bloodGroup" className="text-slate-700">Blood Group</Label>
                     <Select onValueChange={setBloodGroup}>
-                      <SelectTrigger>
+                      <SelectTrigger className="border-slate-200 focus:border-[#2563EB] focus:ring-[#2563EB]/20">
                         <SelectValue placeholder="Select" />
                       </SelectTrigger>
                       <SelectContent>
@@ -278,40 +293,33 @@ const Signup = () => {
               >
                 <Button
                   type="submit"
-                  className="w-full bg-blue-700 hover:bg-blue-800"
+                  className="w-full rounded-full bg-[#2563EB] px-6 py-3 text-white shadow-xl shadow-[#2563EB]/10 hover:bg-[#1D4ED8]"
                   disabled={isLoading}
                 >
                   {isLoading ? (
-                    <>
-                      <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                      Creating Account...
-                    </>
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                      <span>Creating Account...</span>
+                    </div>
                   ) : (
-                    <>
-                      Create Account <ArrowRight className="ml-2 h-4 w-4" />
-                    </>
+                    <span className="flex items-center gap-2">
+                      Create Account <ArrowRight className="h-4 w-4" />
+                    </span>
                   )}
                 </Button>
               </motion.div>
             </form>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4 border-t pt-4">
-            <div className="text-sm text-center text-gray-700">
+          <CardFooter className="flex flex-col space-y-4 border-t border-slate-200/70 pt-6">
+            <div className="text-sm text-center text-[#6B7280]">
               Already have an account?{" "}
               <Link
                 to="/login"
-                className="text-blue-700 hover:text-blue-900 font-medium"
+                className="text-[#2563EB] hover:text-[#1D4ED8] font-medium"
               >
                 Sign in
               </Link>
             </div>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => navigate("/")}
-            >
-              Back to Home
-            </Button>
           </CardFooter>
         </Card>
       </motion.div>

@@ -7,9 +7,15 @@ const API_KEY = process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY;
 const BASE_URL = "https://api.groq.com/openai";
 const MODEL = "llama-3.3-70b-versatile";
 
+interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
 export default async function askGemini(
   query: string,
-  params: string
+  params: string,
+  conversationHistory?: ChatMessage[]
 ): Promise<string> {
   if (!API_KEY) {
     throw new Error(
@@ -18,16 +24,25 @@ export default async function askGemini(
   }
 
   try {
+    // Build messages array with conversation history
+    const messages: ChatMessage[] = [];
+    
+    // Add conversation history if provided
+    if (conversationHistory && conversationHistory.length > 0) {
+      messages.push(...conversationHistory);
+    }
+    
+    // Add the current query as a user message
+    messages.push({
+      role: "user",
+      content: `${query}\n${params}`
+    });
+
     const response = await axios.post(
       `${BASE_URL}/v1/chat/completions`,
       {
         model: MODEL,
-        messages: [
-          {
-            role: "user",
-            content: `${query}\n${params}`
-          }
-        ]
+        messages: messages
       },
       {
         headers: {

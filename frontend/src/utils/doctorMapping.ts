@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios from "@/lib/axios";
 
 const specialityMap: { [key: string]: string } = {
   "general-physician": "general-physician",
@@ -41,7 +41,7 @@ const normalizeSpecialityText = (text: string) =>
 
 export async function determineSpeciality(symptoms: string[]): Promise<string> {
   try {
-    const response = await axios.post("/api/gemini/doctor-recommendation", {
+    const response = await axios.post("/gemini/doctor-recommendation", {
       symptoms,
     });
 

@@ -1,11 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Download } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import html2pdf from "html2pdf.js";
+import axios from "@/lib/axios";
 
 interface AnalysisResults {
   cause: string;
@@ -15,12 +17,206 @@ interface AnalysisResults {
   fileAnalysis?: string;
 }
 
+interface Medication {
+  name: string;
+  brandName: string;
+  company: string;
+  power: string;
+  dose: string;
+  duration: string;
+}
+
+const parseMedicationText = (medicationText: string): Medication[] => {
+  if (!medicationText) return [];
+  
+  console.log('=== RESULTS PAGE PARSE MEDICATION TEXT START ===');
+  console.log('Results Parsing medication text:', medicationText);
+  console.log('Medication text length:', medicationText.length);
+  
+  const medications: Medication[] = [];
+  const lines = medicationText.split('\n');
+  console.log('Number of lines:', lines.length);
+  console.log('Lines:', lines);
+  
+  let currentMed: Partial<Medication> | null = null;
+  let medicationIndex = 0;
+  
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    console.log(`Processing line: "${trimmedLine}"`);
+    
+    // Check if this is a new medication entry - more flexible matching
+    // Supports: "Medication 1:", "1.", "Medication:", "Medication #1", etc.
+    if (trimmedLine.toLowerCase().startsWith('medication') || 
+        trimmedLine.match(/^\d+\./) ||
+        trimmedLine.match(/^med\s*\d+/i) ||
+        trimmedLine.match(/^medication\s*\d+/i)) {
+      console.log('Results: Found medication header:', trimmedLine);
+      // Save the previous medication if it has data
+      if (currentMed && (currentMed.name || currentMed.brandName || currentMed.company)) {
+        console.log(`Results: Saving medication ${medicationIndex}:`, currentMed);
+        medications.push(currentMed as Medication);
+        medicationIndex++;
+      }
+      // Start a new medication
+      currentMed = {};
+      continue;
+    }
+    
+    // If we haven't started a medication yet, auto-start when we see any field
+    if (!currentMed) {
+      const nameMatch = trimmedLine.match(/^[-\s]*name:\s*(.+)$/i);
+      const brandMatch = trimmedLine.match(/^[-\s]*brand\s*name:\s*(.+)$/i);
+      const companyMatch = trimmedLine.match(/^[-\s]*company:\s*(.+)$/i);
+      const powerMatch = trimmedLine.match(/^[-\s]*power:\s*(.+)$/i);
+      const doseMatch = trimmedLine.match(/^[-\s]*dose:\s*(.+)$/i);
+      const durationMatch = trimmedLine.match(/^[-\s]*duration:\s*(.+)$/i);
+      
+      // Auto-start if we see any medication field
+      if (nameMatch || brandMatch || companyMatch || powerMatch || doseMatch || durationMatch) {
+        currentMed = {};
+        console.log('Results: Auto-starting medication entry from field:', trimmedLine);
+      } else {
+        continue;
+      }
+    }
+    
+    // Parse key-value pairs - more flexible patterns including dash prefix
+    const nameMatch = trimmedLine.match(/^[-\s]*name:\s*(.+)$/i);
+    const brandMatch = trimmedLine.match(/^[-\s]*brand\s*name:\s*(.+)$/i);
+    const companyMatch = trimmedLine.match(/^[-\s]*company:\s*(.+)$/i);
+    const powerMatch = trimmedLine.match(/^[-\s]*power:\s*(.+)$/i);
+    const doseMatch = trimmedLine.match(/^[-\s]*dose:\s*(.+)$/i);
+    const durationMatch = trimmedLine.match(/^[-\s]*duration:\s*(.+)$/i);
+    
+    // Only set if not already set to avoid overwriting
+    if (nameMatch && !currentMed.name) {
+      console.log('Results: Found name:', nameMatch[1]);
+      currentMed.name = nameMatch[1].trim();
+    }
+    if (brandMatch && !currentMed.brandName) {
+      console.log('Results: Found brand:', brandMatch[1]);
+      currentMed.brandName = brandMatch[1].trim();
+    }
+    if (companyMatch && !currentMed.company) {
+      console.log('Results: Found company:', companyMatch[1]);
+      currentMed.company = companyMatch[1].trim();
+    }
+    if (powerMatch && !currentMed.power) {
+      console.log('Results: Found power:', powerMatch[1]);
+      currentMed.power = powerMatch[1].trim();
+    }
+    if (doseMatch && !currentMed.dose) {
+      console.log('Results: Found dose:', doseMatch[1]);
+      currentMed.dose = doseMatch[1].trim();
+    }
+    if (durationMatch && !currentMed.duration) {
+      console.log('Results: Found duration:', durationMatch[1]);
+      currentMed.duration = durationMatch[1].trim();
+    }
+  }
+  
+  // Add the last medication if exists
+  if (currentMed && (currentMed.name || currentMed.brandName || currentMed.company)) {
+    console.log(`Results: Saving final medication ${medicationIndex}:`, currentMed);
+    medications.push(currentMed as Medication);
+    medicationIndex++;
+  }
+  
+  console.log('Results: Total medications parsed:', medications.length);
+  console.log('Results: Parsed medications array:', medications);
+  console.log('=== RESULTS PAGE PARSE MEDICATION TEXT END ===');
+  
+  // If no structured medications were found but there's text, try to create a single medication entry
+  if (medications.length === 0 && medicationText.trim()) {
+    console.log('No structured medications found, creating fallback entry');
+    medications.push({
+      name: medicationText.trim(),
+      brandName: "",
+      company: "",
+      power: "",
+      dose: "",
+      duration: ""
+    });
+  }
+  
+  return medications;
+};
+
 const Results = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
   const results = (location.state?.results || {}) as AnalysisResults;
   const selectedTab = (location.state?.selectedTab as string) || "cause";
+  const locationMedications = location.state?.medications as Medication[] | undefined;
+  const reportAnalysisResults = location.state?.reportAnalysisResults as AnalysisResults | undefined;
+  const reportFileContent = location.state?.reportFileContent as string | undefined;
+
+  const initialMedicationText = useMemo(() => {
+    if (results.medication?.trim()) return results.medication;
+    if (reportAnalysisResults?.medication?.trim()) return reportAnalysisResults.medication;
+    return "";
+  }, [results.medication, reportAnalysisResults?.medication]);
+
+  const [medicationText, setMedicationText] = useState(initialMedicationText);
+  const [finalMedications, setFinalMedications] = useState<Medication[]>(() => {
+    if (locationMedications && locationMedications.length > 0) {
+      return locationMedications;
+    }
+    if (initialMedicationText) {
+      return parseMedicationText(initialMedicationText);
+    }
+    return [];
+  });
+  const [medicationLoading, setMedicationLoading] = useState(false);
+
+  useEffect(() => {
+    if (!reportFileContent) return;
+
+    const hasStructuredMedsFromNav =
+      (locationMedications?.length ?? 0) > 0 &&
+      locationMedications!.some(
+        (m) => Boolean(m.brandName || m.dose || m.duration || m.power)
+      );
+
+    if (hasStructuredMedsFromNav) return;
+
+    let cancelled = false;
+
+    const fetchMedicationGuidance = async () => {
+      setMedicationLoading(true);
+      try {
+        const resp = await axios.post("/gemini/medicine-guidance", {
+          fileContent: reportFileContent,
+        });
+        if (cancelled) return;
+
+        if (resp.data?.success && resp.data.responseText) {
+          const text = String(resp.data.responseText).trim();
+          setMedicationText(text);
+          setFinalMedications(parseMedicationText(text));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Medicine guidance fetch error:", error);
+          toast({
+            title: "Medication guidance unavailable",
+            description: "Could not load medication suggestions for this report. Other sections are still available.",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        if (!cancelled) setMedicationLoading(false);
+      }
+    };
+
+    void fetchMedicationGuidance();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reportFileContent, locationMedications, toast]);
 
   useEffect(() => {
     if (!results || Object.keys(results).length === 0) {
@@ -44,11 +240,46 @@ const Results = () => {
     }
 
     const currentDate = new Date().toLocaleDateString();
-    const medHtml = String(results.medication || "")
-      .replace(/<br\s*\/?>(?:\s*)/gi, "\n")
-      .replace(/\n+/g, "\n")
-      .trim()
-      .replace(/\n/g, "<br />");
+    
+    // Parse medications for table format
+    const parsedMeds = finalMedications;
+    
+    let medHtml = "";
+    if (parsedMeds.length > 0) {
+      medHtml = `
+        <table style="width: 100%; border-collapse: collapse; margin-top: 8px;">
+          <thead>
+            <tr style="background: #f1f5f9;">
+              <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left; font-size: 12px; font-weight: 600; color: #475569;">Medicine</th>
+              <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left; font-size: 12px; font-weight: 600; color: #475569;">Brand</th>
+              <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left; font-size: 12px; font-weight: 600; color: #475569;">Company</th>
+              <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left; font-size: 12px; font-weight: 600; color: #475569;">Power</th>
+              <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left; font-size: 12px; font-weight: 600; color: #475569;">Dose</th>
+              <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left; font-size: 12px; font-weight: 600; color: #475569;">Duration</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${parsedMeds.map(med => `
+              <tr>
+                <td style="border: 1px solid #e2e8f0; padding: 8px; font-size: 12px; color: #374151;">${med.name}</td>
+                <td style="border: 1px solid #e2e8f0; padding: 8px; font-size: 12px; color: #374151;">${med.brandName}</td>
+                <td style="border: 1px solid #e2e8f0; padding: 8px; font-size: 12px; color: #374151;">${med.company}</td>
+                <td style="border: 1px solid #e2e8f0; padding: 8px; font-size: 12px; color: #374151;">${med.power}</td>
+                <td style="border: 1px solid #e2e8f0; padding: 8px; font-size: 12px; color: #374151;">${med.dose}</td>
+                <td style="border: 1px solid #e2e8f0; padding: 8px; font-size: 12px; color: #374151;">${med.duration}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    } else {
+      medHtml = String(medicationText || results.medication || "")
+        .replace(/<br\s*\/?>(?:\s*)/gi, "\n")
+        .replace(/\n+/g, "\n")
+        .trim()
+        .replace(/\n/g, "<br />");
+    }
+    
     const causeHtml = String(results.cause || "")
       .replace(/\n+/g, "\n")
       .trim()
@@ -158,9 +389,11 @@ const Results = () => {
     {
       id: "medication",
       title: "Medication Guidance",
-      subtitle: "Suggested medicines and how to use them safely.",
+      subtitle: `Suggested medicines and how to use them safely. ${finalMedications.length > 0 ? `(${finalMedications.length} medication${finalMedications.length !== 1 ? 's' : ''} found)` : ''}`,
       icon: "💉",
-      content: results.medication,
+      content: medicationText || results.medication,
+      isMedication: true,
+      medications: finalMedications,
     },
     {
       id: "homeRemedies",
@@ -236,7 +469,7 @@ const Results = () => {
               <Card
                 key={section.id}
                 id={section.id}
-                className="overflow-hidden rounded-[2rem] border border-slate-200 shadow-lg"
+                className="overflow-visible rounded-[2rem] border border-slate-200 shadow-lg"
               >
                 <CardHeader className="grid gap-3 bg-white px-6 py-6 sm:grid-cols-[auto_1fr] sm:items-center">
                   <div className="flex h-12 w-12 items-center justify-center rounded-3xl bg-slate-100 text-2xl">
@@ -247,10 +480,49 @@ const Results = () => {
                     <p className="mt-1 text-sm text-slate-500">{section.subtitle}</p>
                   </div>
                 </CardHeader>
-                <CardContent className="prose prose-slate max-w-none bg-slate-50 px-6 py-6 text-slate-700">
-                  <ReactMarkdown>
-                    {section.content || "No recommendations available yet. Please return to the dashboard and run an analysis."}
-                  </ReactMarkdown>
+                <CardContent className="bg-slate-50 px-6 py-6 text-slate-700">
+                  {section.isMedication && medicationLoading ? (
+                    <p className="text-sm text-slate-500">Loading medication guidance from your report…</p>
+                  ) : section.isMedication && finalMedications.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <Table className="w-full">
+                        <TableHeader>
+                          <TableRow className="bg-slate-100">
+                            <TableHead className="font-semibold text-slate-900 min-w-[150px]">Medicine Name</TableHead>
+                            <TableHead className="font-semibold text-slate-900 min-w-[120px]">Brand</TableHead>
+                            <TableHead className="font-semibold text-slate-900 min-w-[120px]">Company</TableHead>
+                            <TableHead className="font-semibold text-slate-900 min-w-[100px]">Power</TableHead>
+                            <TableHead className="font-semibold text-slate-900 min-w-[100px]">Dose</TableHead>
+                            <TableHead className="font-semibold text-slate-900 min-w-[100px]">Duration</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {finalMedications.map((med, index) => (
+                            <TableRow key={index} className="border-b border-slate-200">
+                              <TableCell className="font-medium text-slate-900">{med.name}</TableCell>
+                              <TableCell className="text-slate-700">{med.brandName}</TableCell>
+                              <TableCell className="text-slate-700">{med.company}</TableCell>
+                              <TableCell className="text-slate-700">{med.power}</TableCell>
+                              <TableCell className="text-slate-700">{med.dose}</TableCell>
+                              <TableCell className="text-slate-700">{med.duration}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : section.isMedication ? (
+                    <div className="prose prose-slate max-w-none">
+                      <ReactMarkdown>
+                        {section.content || "No medications available yet. Please return to the dashboard and run an analysis."}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <div className="prose prose-slate max-w-none">
+                      <ReactMarkdown>
+                        {section.content || "No recommendations available yet. Please return to the dashboard and run an analysis."}
+                      </ReactMarkdown>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}

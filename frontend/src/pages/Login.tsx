@@ -12,11 +12,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowRight, Lock, Mail } from "lucide-react";
-import { motion } from "framer-motion"; // Change this line
+import { motion } from "motion/react";
 import * as React from "react";
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import axios from "@/lib/axios";
+import Logo from "@/components/Logo";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -55,15 +56,10 @@ const Login = () => {
 
     try {
       const response = await axios.post(
-        "/api/auth/login",
+        "/auth/login",
         {
           email: email.trim().toLowerCase(),
           password: password,
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
         }
       );
 
@@ -104,110 +100,113 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white relative overflow-hidden flex items-center justify-center p-4">
+    <div className="relative min-h-screen overflow-hidden bg-[#FAFBFF] text-[#111827]">
       <AnimatedBackground intensity="low" />
 
+      <div className="pointer-events-none absolute left-[-10%] top-0 h-96 w-96 rounded-full bg-[#2563EB]/15 blur-3xl" />
+      <div className="pointer-events-none absolute right-[-8%] top-24 h-80 w-80 rounded-full bg-[#4F46E5]/20 blur-3xl" />
+      <div className="pointer-events-none absolute left-1/2 top-1/3 h-72 w-72 -translate-x-1/2 rounded-full bg-[#2563EB]/10 blur-3xl" />
+
+      <header className="relative z-20 border-b border-slate-200/70 bg-[#FAFBFF]/90 backdrop-blur-xl">
+        <div className="container mx-auto flex items-center justify-between px-6 py-5">
+          <Logo className="text-slate-900" />
+          <Button variant="ghost" className="text-slate-700 hover:text-[#2563EB]" onClick={() => navigate("/")}>
+            Back to Home
+          </Button>
+        </div>
+      </header>
+
       <motion.div
-        className="w-full max-w-md relative z-10"
+        className="relative z-20 flex min-h-[calc(100vh-80px)] items-center justify-center px-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <Card className="border-none shadow-lg">
-          <CardHeader className="space-y-1">
+        <Card className="w-full max-w-md border-slate-200/70 bg-white/95 shadow-[0_40px_120px_rgba(15,23,42,0.12)]">
+          <CardHeader className="space-y-1 pb-6">
             <div className="text-center">
-              <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-500 to-violet-700 mb-1">
-                QuickMed
-              </h1>
+              <Logo className="justify-center text-slate-900 mb-4" />
+              <CardTitle className="text-2xl font-bold text-center text-slate-950">
+                Welcome back
+              </CardTitle>
+              <CardDescription className="text-center text-[#6B7280]">
+                Enter your credentials to access your account
+              </CardDescription>
             </div>
-            <CardTitle className="text-2xl font-bold text-center">
-              Login
-            </CardTitle>
-            <CardDescription className="text-center">
-              Enter your credentials to access your account
-            </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pb-6">
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-slate-700">Email</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                   <Input
                     id="email"
                     type="email"
                     placeholder="you@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 border-slate-200 focus:border-[#2563EB] focus:ring-[#2563EB]/20"
                     required
                   />
                 </div>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password" className="text-slate-700">Password</Label>
                   <Link
                     to="/forgot-password"
-                    className="text-sm text-indigo-600 hover:text-indigo-800"
+                    className="text-sm text-[#2563EB] hover:text-[#1D4ED8]"
                   >
                     Forgot password?
                   </Link>
                 </div>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                   <Input
                     id="password"
                     type="password"
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 border-gray-200 focus:border-indigo-300 focus:ring-indigo-200"
+                    className="pl-10 border-slate-200 focus:border-[#2563EB] focus:ring-[#2563EB]/20"
                     required
                   />
                 </div>
-                {/* Add subtle shake animation on error */}
-                <motion.div
-                  animate={error ? { x: [0, -10, 10, -10, 0] } : {}}
-                  transition={{ duration: 0.4 }}
-                >
-                  <Button
-                    type="submit"
-                    className="w-full bg-indigo-700 hover:bg-indigo-800"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <div className="flex items-center gap-2">
-                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
-                        <span>Verifying...</span>
-                      </div>
-                    ) : (
-                      <span className="flex items-center gap-2">
-                        Sign In <ArrowRight className="h-4 w-4" />
-                      </span>
-                    )}
-                  </Button>
-                </motion.div>
               </div>
+              <motion.div
+                animate={error ? { x: [0, -10, 10, -10, 0] } : {}}
+                transition={{ duration: 0.4 }}
+              >
+                <Button
+                  type="submit"
+                  className="w-full rounded-full bg-[#2563EB] px-6 py-3 text-white shadow-xl shadow-[#2563EB]/10 hover:bg-[#1D4ED8]"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                      <span>Verifying...</span>
+                    </div>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      Sign In <ArrowRight className="h-4 w-4" />
+                    </span>
+                  )}
+                </Button>
+              </motion.div>
             </form>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4 border-t pt-4">
-            <div className="text-sm text-center text-gray-700">
+          <CardFooter className="flex flex-col space-y-4 border-t border-slate-200/70 pt-6">
+            <div className="text-sm text-center text-[#6B7280]">
               Don't have an account?{" "}
               <Link
                 to="/signup"
-                className="text-indigo-700 hover:text-indigo-900 font-medium"
+                className="text-[#2563EB] hover:text-[#1D4ED8] font-medium"
               >
                 Sign up
               </Link>
             </div>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => navigate("/")}
-            >
-              Back to Home
-            </Button>
           </CardFooter>
         </Card>
       </motion.div>
