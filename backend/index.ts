@@ -17,6 +17,7 @@ const allowedOrigins = [
   "http://127.0.0.1:8080",
   "https://quickmed-ai-doctor.vercel.app",
   "https://quickmed-he7k.vercel.app",
+  "https://quickmed-kks8n78rr-animesh-shaws-projects.vercel.app",
   "https://quickmed-he7k-animesh-shaws-projects.vercel.app",
 ];
 
