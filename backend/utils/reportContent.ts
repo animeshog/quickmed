@@ -1,4 +1,4 @@
-/** Keep report text within model context limits (Groq / LLM APIs). */
+/** Keep report text within model context limits (Gemini / LLM APIs). */
 export function truncateReportForAnalysis(
   content: string,
   maxChars = 24_000

@@ -3,13 +3,22 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const API_KEY = process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY;
-const BASE_URL = "https://api.groq.com/openai";
-const MODEL = "llama-3.3-70b-versatile";
+const API_KEY = process.env.GEMINI_API_KEY;
+const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
+const MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
+}
+
+interface GeminiPart {
+  text?: string;
+}
+
+interface GeminiContent {
+  role: "user" | "model";
+  parts: GeminiPart[];
 }
 
 export default async function askGemini(
@@ -19,76 +28,75 @@ export default async function askGemini(
 ): Promise<string> {
   if (!API_KEY) {
     throw new Error(
-      "GROQ_API_KEY or GEMINI_API_KEY is not configured in environment variables"
+      "GEMINI_API_KEY is not configured in environment variables"
     );
   }
 
   try {
-    // Build messages array with conversation history
-    const messages: ChatMessage[] = [];
-    
-    // Add conversation history if provided
+    const systemInstructions: string[] = [];
+    const contents: GeminiContent[] = [];
+
     if (conversationHistory && conversationHistory.length > 0) {
-      messages.push(...conversationHistory);
+      for (const message of conversationHistory) {
+        if (message.role === "system") {
+          systemInstructions.push(message.content);
+          continue;
+        }
+        contents.push({
+          role: message.role === "assistant" ? "model" : "user",
+          parts: [{ text: message.content }],
+        });
+      }
     }
-    
-    // Add the current query as a user message
-    messages.push({
+
+    contents.push({
       role: "user",
-      content: `${query}\n${params}`
+      parts: [{ text: `${query}\n${params}` }],
     });
 
     const response = await axios.post(
-      `${BASE_URL}/v1/chat/completions`,
+      `${BASE_URL}/models/${MODEL}:generateContent`,
       {
-        model: MODEL,
-        messages: messages
+        contents,
+        ...(systemInstructions.length > 0
+          ? {
+              systemInstruction: {
+                parts: [{ text: systemInstructions.join("\n") }],
+              },
+            }
+          : {}),
       },
       {
         headers: {
-          Authorization: `Bearer ${API_KEY}`,
+          "x-goog-api-key": API_KEY,
           "Content-Type": "application/json",
         },
       }
     );
-    console.log(JSON.stringify(response.data, null, 2));
-    const output = response.data?.choices?.[0]?.message?.content;
+
+    const parts: GeminiPart[] | undefined =
+      response.data?.candidates?.[0]?.content?.parts;
+
+    const output = parts
+      ?.map((part) => part?.text || "")
+      .join("")
+      .trim();
 
     if (!output) {
-      throw new Error("Invalid response format from Groq API");
+      throw new Error("Invalid response format from Gemini API");
     }
 
-    if (typeof output === "string") {
-      return output;
-    }
-
-    if (Array.isArray(output)) {
-      return output
-        .map((item) => {
-          if (typeof item === "string") {
-            return item;
-          }
-          if (item?.content) {
-            return item.content
-              .map((part: any) => part?.text || "")
-              .join("");
-          }
-          return JSON.stringify(item);
-        })
-        .join(" ");
-    }
-
-    return String(output);
+    return output;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
       const data = error.response?.data;
-      console.error("Groq Axios error:", status, data);
+      console.error("Gemini Axios error:", status, data);
       const errorMessage =
         data?.error?.message || data?.message || JSON.stringify(data) || error.message || "Unknown error";
-      throw new Error(`Groq API Error: ${errorMessage}`);
+      throw new Error(`Gemini API Error: ${errorMessage}`);
     }
-    console.error("Groq non-Axios error:", error);
+    console.error("Gemini non-Axios error:", error);
     throw error;
   }
 }
