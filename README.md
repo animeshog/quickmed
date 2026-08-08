@@ -12,7 +12,7 @@ The app supports:
 
 ## 📁 Project Structure
 
-- `backend/` — Express API, TypeScript server, MongoDB integration, Gemini/Groq AI routes
+- `backend/` — Express API, TypeScript server, MongoDB integration, Gemini AI routes
 - `frontend/` — Vite + React + TypeScript frontend with Tailwind, shadcn/ui, and React Router
 
 ---
@@ -31,9 +31,9 @@ Create a `backend/.env` file with these values:
 ```env
 DB_URL=your_mongodb_connection_string
 JWT_SECRET=your_jwt_secret
-GROQ_API_KEY=your_groq_api_key
-# or use GEMINI_API_KEY as an alias
-GEMINI_API_KEY=your_groq_api_key
+GEMINI_API_KEY=your_gemini_api_key
+# optional, defaults to gemini-flash-latest
+GEMINI_MODEL=gemini-flash-latest
 PORT=5000
 ```
 
@@ -73,8 +73,8 @@ Authentication routes live under `/api/auth`.
 
 ## 🔧 Notes
 
-- The backend currently uses `GROQ_API_KEY` or `GEMINI_API_KEY` to authenticate with the Groq API.
-- If you get network errors like `getaddrinfo ENOTFOUND api.groq.com`, verify your internet connection and DNS settings.
+- The backend uses `GEMINI_API_KEY` to authenticate with the Google Gemini API (`generativelanguage.googleapis.com`). Get a key from https://aistudio.google.com/apikey.
+- If you get network errors like `getaddrinfo ENOTFOUND generativelanguage.googleapis.com`, verify your internet connection and DNS settings.
 - Make sure your `.env` file is loaded before starting the backend.
 
 ---
