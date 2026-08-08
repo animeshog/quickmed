@@ -298,10 +298,10 @@ const History = () => {
         animate={{ y: 0, opacity: 1 }}
         className="bg-white/80 backdrop-blur-sm border-b border-blue-100 sticky top-0 z-50"
       >
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+        <div className="container mx-auto px-3 py-3 sm:px-4 sm:py-4">
+          <div className="flex items-center justify-between gap-2">
             <Logo />
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <Button
                 variant="outline"
                 size="sm"
@@ -323,13 +323,13 @@ const History = () => {
         </div>
       </motion.header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-3 py-6 sm:px-4 sm:py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-6 sm:mb-8"
         >
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
             Past Consultations
           </h1>
           <p className="text-gray-600">Your recent health analyses</p>
@@ -355,18 +355,18 @@ const History = () => {
                     setIsDialogOpen(true);
                   }}
                 >
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className="bg-blue-100 p-2 rounded-lg">
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <div className="shrink-0 bg-blue-100 p-2 rounded-lg">
                           <Stethoscope className="h-4 w-4 text-blue-600" />
                         </div>
-                        <span className="font-medium">
+                        <span className="min-w-0 break-words text-sm font-medium sm:text-base">
                           {chat.symptoms.slice(0, 3).join(", ")}
                           {chat.symptoms.length > 3 && "..."}
                         </span>
                       </div>
-                      <div className="text-sm text-gray-500">
+                      <div className="shrink-0 text-xs text-gray-500 sm:text-sm">
                         {new Date(chat.date).toLocaleDateString()}
                       </div>
                     </div>
@@ -383,9 +383,9 @@ const History = () => {
 
       {/* Detail Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-1.5rem)] max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl">Consultation Details</DialogTitle>
+            <DialogTitle className="text-xl sm:text-2xl">Consultation Details</DialogTitle>
             <DialogDescription>
               {new Date(selectedHistory?.date || "").toLocaleDateString()}
             </DialogDescription>
@@ -417,7 +417,7 @@ const History = () => {
                   <Stethoscope className="h-5 w-5 text-green-600" />
                   <h3>Diagnosis</h3>
                 </div>
-                <p className="text-gray-700 bg-gray-50 p-4 rounded-lg">
+                <p className="break-words rounded-lg bg-gray-50 p-3 text-sm text-gray-700 sm:p-4 sm:text-base">
                   {selectedHistory.diagnosis}
                 </p>
               </div>
@@ -429,7 +429,7 @@ const History = () => {
                     <FileText className="h-5 w-5 text-purple-600" />
                     <h3>Treatment Plan</h3>
                   </div>
-                  <p className="text-gray-700 bg-gray-50 p-4 rounded-lg whitespace-pre-line">
+                  <p className="whitespace-pre-line break-words rounded-lg bg-gray-50 p-3 text-sm text-gray-700 sm:p-4 sm:text-base">
                     {selectedHistory.treatment}
                   </p>
                 </div>
@@ -442,7 +442,7 @@ const History = () => {
                     <Pill className="h-5 w-5 text-red-600" />
                     <h3>Medications</h3>
                   </div>
-                  <p className="text-gray-700 bg-gray-50 p-4 rounded-lg whitespace-pre-line">
+                  <p className="whitespace-pre-line break-words rounded-lg bg-gray-50 p-3 text-sm text-gray-700 sm:p-4 sm:text-base">
                     {selectedHistory.medications}
                   </p>
                 </div>
@@ -455,7 +455,7 @@ const History = () => {
                     <Leaf className="h-5 w-5 text-green-600" />
                     <h3>Home Remedies</h3>
                   </div>
-                  <p className="text-gray-700 bg-gray-50 p-4 rounded-lg whitespace-pre-line">
+                  <p className="whitespace-pre-line break-words rounded-lg bg-gray-50 p-3 text-sm text-gray-700 sm:p-4 sm:text-base">
                     {selectedHistory.homeRemedies}
                   </p>
                 </div>
@@ -468,7 +468,7 @@ const History = () => {
                     <FileText className="h-5 w-5 text-orange-600" />
                     <h3>File Analysis</h3>
                   </div>
-                  <p className="text-gray-700 bg-gray-50 p-4 rounded-lg whitespace-pre-line">
+                  <p className="whitespace-pre-line break-words rounded-lg bg-gray-50 p-3 text-sm text-gray-700 sm:p-4 sm:text-base">
                     {selectedHistory.fileAnalysis}
                   </p>
                 </div>
@@ -478,7 +478,7 @@ const History = () => {
               <div className="flex justify-end pt-4 border-t">
                 <Button
                   onClick={() => downloadPrescription(selectedHistory)}
-                  className="flex items-center gap-2"
+                  className="flex w-full items-center justify-center gap-2 sm:w-auto"
                 >
                   <Download className="h-4 w-4" />
                   Download Prescription
