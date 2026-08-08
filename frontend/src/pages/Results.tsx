@@ -411,29 +411,29 @@ const Results = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="bg-gradient-to-br from-slate-950 via-sky-900 to-cyan-700 px-6 py-10 text-white">
+      <div className="bg-gradient-to-br from-slate-950 via-sky-900 to-cyan-700 px-4 py-8 text-white sm:px-6 sm:py-10">
         <div className="container mx-auto flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-2xl">
             <p className="text-xs uppercase tracking-[0.32em] text-cyan-200/80">Detailed Results</p>
-            <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl">
+            <h1 className="mt-4 text-2xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
               Clinical report — organized, clear, and professional.
             </h1>
-            <p className="mt-4 max-w-2xl text-base leading-8 text-slate-200/90">
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-200/90 sm:text-base sm:leading-8">
               View your diagnosis summary, treatment direction, medication guidance, and safe home care recommendations in one polished report.
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
             <Button
               variant="outline"
-              className="border-white/30 bg-white/10 text-white hover:border-white hover:bg-white/20"
+              className="w-full border-white/30 bg-white/10 text-white hover:border-white hover:bg-white/20 sm:w-auto"
               onClick={() => navigate(-1)}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Dashboard
             </Button>
             <Button
-              className="bg-white text-slate-950 hover:bg-slate-100"
+              className="w-full bg-white text-slate-950 hover:bg-slate-100 sm:w-auto"
               onClick={handleDownload}
             >
               <Download className="mr-2 h-4 w-4" />
@@ -443,22 +443,22 @@ const Results = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-10">
+      <div className="container mx-auto px-3 py-6 sm:px-4 sm:py-10">
         <div className="grid gap-6 xl:grid-cols-[1.1fr_0.55fr]">
           <div className="space-y-6">
-            <Card className="overflow-hidden rounded-[2rem] border border-slate-200 shadow-2xl shadow-slate-200/30">
-              <CardHeader className="bg-white/90 px-6 py-6">
-                <CardTitle className="text-2xl font-semibold text-slate-950">
+            <Card className="overflow-hidden rounded-2xl border border-slate-200 shadow-2xl shadow-slate-200/30 sm:rounded-[2rem]">
+              <CardHeader className="bg-white/90 px-4 py-5 sm:px-6 sm:py-6">
+                <CardTitle className="text-xl font-semibold text-slate-950 sm:text-2xl">
                   Full analysis overview
                 </CardTitle>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
                   This section highlights the most important findings from your latest analysis.
                 </p>
               </CardHeader>
-              <CardContent className="bg-slate-50 px-6 py-6">
-                <div className="rounded-[1.5rem] border border-slate-200 bg-white p-6 shadow-sm">
+              <CardContent className="bg-slate-50 px-4 py-5 sm:px-6 sm:py-6">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-[1.5rem] sm:p-6">
                   <h2 className="text-lg font-semibold text-slate-900">Report summary</h2>
-                  <p className="mt-4 text-sm leading-7 text-slate-600 whitespace-pre-line">
+                  <p className="mt-4 break-words text-sm leading-7 text-slate-600 whitespace-pre-line">
                     {summaryText}
                   </p>
                 </div>
@@ -469,23 +469,23 @@ const Results = () => {
               <Card
                 key={section.id}
                 id={section.id}
-                className="overflow-visible rounded-[2rem] border border-slate-200 shadow-lg"
+                className="overflow-hidden rounded-2xl border border-slate-200 shadow-lg sm:rounded-[2rem]"
               >
-                <CardHeader className="grid gap-3 bg-white px-6 py-6 sm:grid-cols-[auto_1fr] sm:items-center">
+                <CardHeader className="grid gap-3 bg-white px-4 py-5 sm:grid-cols-[auto_1fr] sm:items-center sm:px-6 sm:py-6">
                   <div className="flex h-12 w-12 items-center justify-center rounded-3xl bg-slate-100 text-2xl">
                     {section.icon}
                   </div>
                   <div>
-                    <h2 className="text-xl font-semibold text-slate-950">{section.title}</h2>
+                    <h2 className="text-lg font-semibold text-slate-950 sm:text-xl">{section.title}</h2>
                     <p className="mt-1 text-sm text-slate-500">{section.subtitle}</p>
                   </div>
                 </CardHeader>
-                <CardContent className="bg-slate-50 px-6 py-6 text-slate-700">
+                <CardContent className="bg-slate-50 px-4 py-5 text-slate-700 sm:px-6 sm:py-6">
                   {section.isMedication && medicationLoading ? (
                     <p className="text-sm text-slate-500">Loading medication guidance from your report…</p>
                   ) : section.isMedication && finalMedications.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <Table className="w-full">
+                    <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+                      <Table className="w-full min-w-[640px]">
                         <TableHeader>
                           <TableRow className="bg-slate-100">
                             <TableHead className="font-semibold text-slate-900 min-w-[150px]">Medicine Name</TableHead>
@@ -511,13 +511,13 @@ const Results = () => {
                       </Table>
                     </div>
                   ) : section.isMedication ? (
-                    <div className="prose prose-slate max-w-none">
+                    <div className="prose prose-sm prose-slate max-w-none break-words sm:prose-base">
                       <ReactMarkdown>
                         {section.content || "No medications available yet. Please return to the dashboard and run an analysis."}
                       </ReactMarkdown>
                     </div>
                   ) : (
-                    <div className="prose prose-slate max-w-none">
+                    <div className="prose prose-sm prose-slate max-w-none break-words sm:prose-base">
                       <ReactMarkdown>
                         {section.content || "No recommendations available yet. Please return to the dashboard and run an analysis."}
                       </ReactMarkdown>
@@ -529,14 +529,14 @@ const Results = () => {
           </div>
 
           <aside className="space-y-6">
-            <Card className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-lg">
-              <CardHeader className="px-6 py-6">
+            <Card className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg sm:rounded-[2rem]">
+              <CardHeader className="px-4 py-5 sm:px-6 sm:py-6">
                 <CardTitle className="text-lg font-semibold text-slate-950">Jump to section</CardTitle>
                 <p className="mt-2 text-sm text-slate-500">
                   Select a card in the dashboard to open a specific section directly.
                 </p>
               </CardHeader>
-              <CardContent className="space-y-3 px-6 py-6">
+              <CardContent className="space-y-3 px-4 py-5 sm:px-6 sm:py-6">
                 {sections.map((section) => (
                   <button
                     key={section.id}
@@ -545,7 +545,7 @@ const Results = () => {
                       const element = document.getElementById(section.id);
                       element?.scrollIntoView({ behavior: "smooth", block: "start" });
                     }}
-                    className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4 text-left text-sm text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left sm:rounded-3xl sm:py-4 text-sm text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
                   >
                     <span className="block font-semibold text-slate-900">{section.title}</span>
                     <span className="text-slate-500">{section.subtitle}</span>
@@ -554,8 +554,8 @@ const Results = () => {
               </CardContent>
             </Card>
 
-            <Card className="overflow-hidden rounded-[2rem] border border-slate-200 bg-slate-950 text-white shadow-xl">
-              <CardContent className="px-6 py-6">
+            <Card className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-950 text-white shadow-xl sm:rounded-[2rem]">
+              <CardContent className="px-4 py-5 sm:px-6 sm:py-6">
                 <h2 className="text-lg font-semibold">Important note</h2>
                 <p className="mt-4 text-sm leading-6 text-slate-300">
                   QuickMed results are intended as guidance only. Always consult a licensed healthcare professional before acting on medical advice.

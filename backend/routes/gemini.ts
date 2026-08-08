@@ -4,6 +4,11 @@ import multer from "multer";
 import { processFile } from "../services/pdfService";
 import History from "../models/historySchema";
 import { truncateReportForAnalysis } from "../utils/reportContent";
+import { isAuthanticatedUser } from "../middlewares";
+
+interface AuthenticatedRequest extends Request {
+  user?: { _id: string };
+}
 
 // Update multer configuration
 const storage = multer.memoryStorage();
@@ -407,21 +412,45 @@ Think step by step:
 // Update the save-history endpoint
 router.post(
   "/save-history",
-  async (req: Request, res: Response): Promise<void> => {
+  isAuthanticatedUser,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const { userId, symptoms, results } = req.body;
+      const { symptoms, results } = req.body;
+      const userId = req.user?._id || req.body.userId;
 
-      if (!userId || !symptoms) {
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          message: "Not authenticated",
+        });
+        return;
+      }
+
+      const symptomList: string[] = Array.isArray(symptoms)
+        ? symptoms.filter(Boolean)
+        : [];
+      const hasResults = Boolean(
+        results &&
+          [
+            results.cause,
+            results.treatment,
+            results.medication,
+            results.homeRemedies,
+            results.fileAnalysis,
+          ].some((value: unknown) => typeof value === "string" && value.trim())
+      );
+
+      if (!symptomList.length && !hasResults) {
         res.status(400).json({
           success: false,
-          message: "Missing userId or symptoms",
+          message: "Nothing to save: provide symptoms or analysis results",
         });
         return;
       }
 
       const history = new History({
         userId,
-        symptoms,
+        symptoms: symptomList,
         diagnosis: results?.cause || "",
         treatment: results?.treatment || "",
         medications: results?.medication || "",

@@ -363,6 +363,27 @@ const Dashboard = () => {
     fetchUserDetails();
   }, []);
 
+  const saveAnalysisToHistory = async (
+    symptoms: string[],
+    analysisResults: AnalysisResults
+  ) => {
+    const userData = JSON.parse(localStorage.getItem("userData") || "{}");
+    try {
+      await axios.post("/gemini/save-history", {
+        userId: userData._id,
+        symptoms,
+        results: analysisResults,
+      });
+    } catch (historyError) {
+      console.error("Failed to save history:", historyError);
+      toast({
+        title: "Warning",
+        description: "Analysis completed but failed to save history.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleAnalyzeSymptoms = async (
     followUpAnswersToSend: string[] = [],
     conversationHistoryToSend: Array<{role: 'user' | 'assistant', content: string}> = []
@@ -422,28 +443,7 @@ const Dashboard = () => {
       setMedications(parsedMedications);
       console.log('=== DASHBOARD SYMPTOM ANALYSIS STATE UPDATE END ===');
 
-      const userData = JSON.parse(localStorage.getItem("userData") || "{}");
-      const token = localStorage.getItem("token");
-
-      if (userData._id && token) {
-        try {
-          await axios.post(
-            "/gemini/save-history",
-            {
-              userId: userData._id,
-              symptoms: allSymptoms,
-              results: newResults,
-            }
-          );
-        } catch (historyError) {
-          console.error("Failed to save history:", historyError);
-          toast({
-            title: "Warning",
-            description: "Analysis completed but failed to save history.",
-            variant: "destructive",
-          });
-        }
-      }
+      await saveAnalysisToHistory(allSymptoms, newResults);
 
       toast({
         title: "Success",
@@ -600,6 +600,13 @@ const Dashboard = () => {
         setResults(updatedResults);
         setReportUploaded(false);
         toast({ title: "Report analyzed", description: "Report analysis is ready." });
+
+        await saveAnalysisToHistory(
+          allSymptoms.length > 0
+            ? allSymptoms
+            : [file?.name ? `Report: ${file.name}` : "Uploaded medical report"],
+          updatedResults
+        );
         
         // Navigate to results page with report analysis data
         const parsedMedications = parseMedicationText(parsed.medication);
@@ -1133,8 +1140,8 @@ const Dashboard = () => {
         animate={{ y: 0, opacity: 1 }}
         className="bg-white/90 backdrop-blur-xl border-b border-gradient-to-r from-blue-100/50 to-purple-100/50 sticky top-0 z-50 shadow-lg shadow-blue-500/5"
       >
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+        <div className="container mx-auto px-3 py-3 sm:px-4 sm:py-4">
+          <div className="flex items-center justify-between gap-2">
             <Logo className="text-slate-900" />
             <div className="flex items-center gap-3">
               <Button
@@ -1158,18 +1165,18 @@ const Dashboard = () => {
         </div>
       </motion.header>
 
-      <main className="relative z-10 container mx-auto px-4 py-8">
+      <main className="relative z-10 container mx-auto px-3 py-6 sm:px-4 sm:py-8">
         {/* Welcome Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-6 sm:mb-8"
         >
-          <div className="bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 rounded-3xl p-8 border border-white/50 shadow-xl shadow-blue-500/10">
-            <h1 className="text-4xl font-bold text-slate-950 mb-3">
+          <div className="bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 rounded-2xl p-5 sm:rounded-3xl sm:p-8 border border-white/50 shadow-xl shadow-blue-500/10">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-950 mb-3">
               Healthcare powered by AI, built around you.
             </h1>
-            <p className="text-gray-600 text-lg">
+            <p className="text-gray-600 text-base sm:text-lg">
               Describe your symptoms for an AI-powered health analysis
             </p>
             <div className="flex items-center gap-2 mt-4">
@@ -1187,20 +1194,20 @@ const Dashboard = () => {
             animate={{ opacity: 1, x: 0 }}
             className="lg:col-span-2"
           >
-            <div className="bg-white/90 backdrop-blur-xl rounded-3xl p-8 shadow-2xl shadow-blue-500/10 border border-white/50">
+            <div className="bg-white/90 backdrop-blur-xl rounded-2xl p-5 sm:rounded-3xl sm:p-8 shadow-2xl shadow-blue-500/10 border border-white/50">
               <div className="flex items-center gap-3 mb-6">
                 <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2.5 rounded-xl shadow-lg shadow-blue-500/20">
                   <Activity className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Symptom Analysis</h2>
+                  <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Symptom Analysis</h2>
                   <p className="text-sm text-gray-500">Enter your symptoms for AI-powered diagnosis</p>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <div className="flex gap-3">
-                  <div className="flex-1 flex gap-2">
+                <div className="flex flex-wrap gap-2 sm:gap-3">
+                  <div className="flex min-w-0 flex-1 gap-2">
                     <Input
                       placeholder="Enter a symptom..."
                       value={currentSymptom}
@@ -1214,7 +1221,7 @@ const Dashboard = () => {
                   <Button
                     onClick={handleAddSymptom}
                     disabled={!currentSymptom.trim()}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-12 px-6 rounded-xl shadow-lg shadow-blue-500/25 transition-all duration-200 hover:scale-105 hover:shadow-xl"
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-12 px-4 sm:px-6 rounded-xl shadow-lg shadow-blue-500/25 transition-all duration-200 hover:scale-105 hover:shadow-xl"
                   >
                     <Plus className="h-5 w-5" />
                   </Button>
@@ -1251,7 +1258,7 @@ const Dashboard = () => {
                       </span>
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-3xl rounded-2xl">
+                  <DialogContent className="w-[calc(100vw-1.5rem)] max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl">
                     <DialogHeader>
                       <DialogTitle className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Select Symptoms by Category</DialogTitle>
                     </DialogHeader>
@@ -1280,7 +1287,7 @@ const Dashboard = () => {
                   />
                   <label
                     htmlFor="file-upload"
-                    className="flex items-center justify-center gap-3 p-6 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 group"
+                    className="flex flex-col sm:flex-row items-center justify-center gap-3 p-4 sm:p-6 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-blue-50/50 transition-all duration-200 group"
                   >
                     <div className="bg-gradient-to-br from-blue-100 to-purple-100 p-3 rounded-xl group-hover:scale-110 transition-transform duration-200">
                       <FileText className="h-6 w-6 text-blue-600" />
@@ -1314,11 +1321,11 @@ const Dashboard = () => {
                   )}
                 </div>
 
-                <div className="flex gap-3 mt-6">
+                <div className="flex flex-col sm:flex-row gap-3 mt-6">
                   <Button
                     onClick={handleAnalyze}
                     disabled={isAnalyzing || allSymptoms.length === 0}
-                    className="flex-1 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 h-14 rounded-2xl shadow-xl shadow-blue-500/25 transition-all duration-200 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/30 text-lg font-semibold"
+                    className="flex-1 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 h-12 sm:h-14 rounded-2xl shadow-xl shadow-blue-500/25 transition-all duration-200 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/30 text-base sm:text-lg font-semibold"
                   >
                     {isAnalyzing ? (
                       <div className="flex items-center gap-3">
@@ -1335,7 +1342,7 @@ const Dashboard = () => {
                   {file && (
                     <Button
                       onClick={handleAnalyzeUploadedReport}
-                      className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-14 rounded-2xl shadow-lg shadow-blue-500/25 transition-all duration-200 hover:scale-105 text-lg font-semibold"
+                      className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-12 sm:h-14 rounded-2xl shadow-lg shadow-blue-500/25 transition-all duration-200 hover:scale-105 text-base sm:text-lg font-semibold"
                       disabled={isAnalyzingReport}
                     >
                       {isAnalyzingReport ? (
@@ -1365,8 +1372,8 @@ const Dashboard = () => {
             animate={{ opacity: 1, x: 0 }}
             className="space-y-6"
           >
-            <div className="bg-white/90 backdrop-blur-xl rounded-3xl p-6 shadow-xl shadow-blue-500/10 border border-white/50">
-              <h3 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">Quick Actions</h3>
+            <div className="bg-white/90 backdrop-blur-xl rounded-2xl p-5 sm:rounded-3xl sm:p-6 shadow-xl shadow-blue-500/10 border border-white/50">
+              <h3 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">Quick Actions</h3>
               <div className="space-y-3">
                 <Button
                   variant="outline"
@@ -1394,7 +1401,7 @@ const Dashboard = () => {
             </div>
 
             {/* Tips Section */}
-            <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white rounded-3xl p-6 shadow-xl shadow-blue-500/25">
+            <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white rounded-2xl p-5 sm:rounded-3xl sm:p-6 shadow-xl shadow-blue-500/25">
               <div className="flex items-center gap-3 mb-4">
                 <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
                   <Bot className="h-5 w-5 text-white" />
@@ -1426,7 +1433,7 @@ const Dashboard = () => {
         </div>
 
         <Dialog open={chatDialogOpen} onOpenChange={setChatDialogOpen}>
-          <DialogContent className="max-w-2xl h-[600px] flex flex-col">
+          <DialogContent className="flex h-[90vh] w-[calc(100vw-1.5rem)] max-w-2xl flex-col sm:h-[600px]">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Bot className="h-5 w-5 text-blue-600" />
@@ -1448,7 +1455,7 @@ const Dashboard = () => {
                   animate={{ opacity: 1, y: 0 }}
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`flex items-start gap-3 max-w-[80%] ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                  <div className={`flex items-start gap-2 sm:gap-3 max-w-[90%] sm:max-w-[80%] ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
                     <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
                       message.role === 'user' ? 'bg-blue-600' : 'bg-green-600'
                     }`}>
@@ -1458,7 +1465,7 @@ const Dashboard = () => {
                         <Bot className="h-4 w-4 text-white" />
                       )}
                     </div>
-                    <div className={`rounded-2xl px-4 py-3 ${
+                    <div className={`min-w-0 break-words rounded-2xl px-3 py-2 sm:px-4 sm:py-3 ${
                       message.role === 'user' 
                         ? 'bg-blue-600 text-white' 
                         : 'bg-white border border-gray-200 text-gray-900'
@@ -1512,7 +1519,7 @@ const Dashboard = () => {
                 </Button>
               </div>
               
-              <div className="flex justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1541,10 +1548,10 @@ const Dashboard = () => {
             animate={{ opacity: 1, y: 0 }}
             className="mt-8"
           >
-            <div className="bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 rounded-3xl p-8 border border-white/50 shadow-xl shadow-blue-500/10 mb-6">
+            <div className="bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 rounded-2xl p-5 sm:rounded-3xl sm:p-8 border border-white/50 shadow-xl shadow-blue-500/10 mb-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                     Analysis Results
                   </h2>
                   <p className="mt-2 text-sm text-gray-600 max-w-2xl">
@@ -1589,7 +1596,7 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 xl:grid-cols-4">
               {resultTabs.map((tab) => (
                 <motion.div
                   key={tab.id}
@@ -1599,7 +1606,7 @@ const Dashboard = () => {
                       state: { results, selectedTab: tab.id, medications: medications, reportAnalysisResults },
                     })
                   }
-                  className="cursor-pointer rounded-3xl border border-white/50 bg-white/90 backdrop-blur-xl p-6 shadow-xl shadow-blue-500/10 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/20"
+                  className="cursor-pointer rounded-2xl sm:rounded-3xl border border-white/50 bg-white/90 backdrop-blur-xl p-5 sm:p-6 shadow-xl shadow-blue-500/10 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/20"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span
@@ -1615,7 +1622,7 @@ const Dashboard = () => {
                     {tab.title}
                   </h3>
                   {tab.id === "medication" && tab.medications && tab.medications.length > 0 ? (
-                    <div className="mt-3 overflow-hidden">
+                    <div className="mt-3 -mx-2 overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow className="border-gray-100">
